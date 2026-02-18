@@ -3,13 +3,14 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 're
 import {
   LayoutDashboard, Package, ShoppingCart, Users, Settings,
   LogOut, Shield, Layers, RefreshCw, Plus, Trash2, Search,
-  Megaphone, Palette, User
+  Megaphone, Palette, User, CreditCard
 } from 'lucide-react'
 import { adminRequest, getToken, setToken, clearToken } from './utils/api'
 import { LoginPage, Dashboard, OrdersPage } from './pages/index'
 import ProductsPage from './pages/ProductsPage'
 import AnnouncementsPage from './pages/AnnouncementsPage'
 import ShopDesignPage from './pages/ShopDesignPage'
+import PaymentSettingsPage from './pages/PaymentSettingsPage'
 import AccountPage from './pages/AccountPage'
 
 // ==================== 分类管理 ====================
@@ -179,8 +180,9 @@ const AdminLayout = ({ onLogout }) => {
     { path: '/categories', label: '分类管理', icon: Layers },
     { path: '/announcements', label: '公告管理', icon: Megaphone },
     { path: '/design', label: '店铺装修', icon: Palette },
+    { path: '/payment', label: '支付设置', icon: CreditCard },
     { path: '/users', label: '用户管理', icon: Users },
-    { path: '/account', label: '账号管理', icon: User },
+    { path: '/account', label: '用户中心', icon: User },
   ]
 
   const handleLogout = () => { clearToken(); onLogout() }
@@ -220,6 +222,7 @@ const AdminLayout = ({ onLogout }) => {
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/design" element={<ShopDesignPage />} />
+          <Route path="/payment" element={<PaymentSettingsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
