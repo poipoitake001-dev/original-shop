@@ -20,7 +20,7 @@ const { verifyToken, verifyAdmin } = require('../middleware/auth');
 router.get('/public', async (req, res) => {
     try {
         const settings = await db.query(
-            'SELECT site_name, site_name_en, page_title, favicon_url, site_logo_url, site_description, theme_color, bg_color, default_product_image, contact_qr_url, contact_wechat, contact_email, contact_phone, support_hours, footer_text, footer_description, social_links FROM site_settings WHERE id = 1'
+            'SELECT site_name, site_name_en, page_title, favicon_url, site_logo_url, site_description, theme_color, bg_color, default_product_image, contact_qr_url, contact_wechat, contact_email, contact_phone, support_hours, footer_text, footer_description, social_links, feature_1_title, feature_1_desc, feature_1_icon, feature_2_title, feature_2_desc, feature_2_icon, feature_3_title, feature_3_desc, feature_3_icon FROM site_settings WHERE id = 1'
         );
         
         if (settings.length === 0) {
