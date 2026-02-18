@@ -374,11 +374,168 @@ router.get('/settings', verifyToken, verifyAdmin, async (req, res) => {
 
 router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { site_name, site_description, contact_email } = req.body;
-        await db.query(`UPDATE site_settings SET site_name = COALESCE($1, site_name), site_description = COALESCE($2, site_description), contact_email = COALESCE($3, contact_email), updated_at = NOW() WHERE id = 1`, [site_name, site_description, contact_email]);
+        const fields = ['site_name', 'site_description', 'contact_email', 'contact_phone', 'contact_wechat', 
+            'contact_qr_url', 'footer_text', 'theme_color', 'bg_color', 'site_logo_url', 'favicon_url', 'page_title'];
+        const updateFields = [];
+        const params = [];
+        let paramIndex = 1;
+
+        fields.forEach(f => {
+            if (req.body[f] !== undefined) {
+                updateFields.push(`${f} = $${paramIndex++}`);
+                params.push(req.body[f] || null);
+            }
+        });
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ code: 400, message: '没有要更新的字段' });
+        }
+
+        params.push(1);
+        await db.query(`UPDATE site_settings SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex}`, params);
         res.json({ code: 200, message: '设置已更新' });
     } catch (error) {
+        console.error('Update settings error:', error);
         res.status(500).json({ code: 500, message: '更新失败' });
+    }
+});
+
+// ==================== 账号管理 ====================
+
+router.get('/account', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const users = await db.query('SELECT id, username, email, created_at FROM users WHERE id = $1', [req.user.id]);
+        if (users.length === 0) return res.status(404).json({ code: 404, message: '用户不存在' });
+        res.json({ code: 200, data: users[0] });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '获取账户信息失败' });
+    }
+});
+
+router.put('/account', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { username, email, current_password } = req.body;
+        if (!current_password) return res.status(400).json({ code: 400, message: '请输入当前密码' });
+
+        const users = await db.query('SELECT password FROM users WHERE id = $1', [req.user.id]);
+        if (users.length === 0) return res.status(404).json({ code: 404, message: '用户不存在' });
+
+        const isMatch = await bcrypt.compare(current_password, users[0].password);
+        if (!isMatch) return res.status(400).json({ code: 400, message: '当前密码错误' });
+
+        const updateFields = [];
+        const params = [];
+        let paramIndex = 1;
+
+        if (username) {
+            const existing = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, req.user.id]);
+            if (existing.length > 0) return res.status(400).json({ code: 400, message: '用户名已被使用' });
+            updateFields.push(`username = $${paramIndex++}`);
+            params.push(username);
+        }
+        if (email) {
+            const existing = await db.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.user.id]);
+            if (existing.length > 0) return res.status(400).json({ code: 400, message: '邮箱已被使用' });
+            updateFields.push(`email = $${paramIndex++}`);
+            params.push(email);
+        }
+
+        if (updateFields.length === 0) return res.status(400).json({ code: 400, message: '没有要更新的字段' });
+
+        params.push(req.user.id);
+        await db.query(`UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`, params);
+        res.json({ code: 200, message: '账户信息更新成功' });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '更新账户信息失败' });
+    }
+});
+
+router.put('/password', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { current_password, new_password, confirm_password } = req.body;
+        if (!current_password || !new_password || !confirm_password) {
+            return res.status(400).json({ code: 400, message: '请填写所有密码字段' });
+        }
+        if (new_password !== confirm_password) {
+            return res.status(400).json({ code: 400, message: '两次输入的新密码不一致' });
+        }
+        if (new_password.length < 6) {
+            return res.status(400).json({ code: 400, message: '新密码长度不能少于6位' });
+        }
+
+        const users = await db.query('SELECT password FROM users WHERE id = $1', [req.user.id]);
+        if (users.length === 0) return res.status(404).json({ code: 404, message: '用户不存在' });
+
+        const isMatch = await bcrypt.compare(current_password, users[0].password);
+        if (!isMatch) return res.status(400).json({ code: 400, message: '当前密码错误' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(new_password, salt);
+        await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
+        res.json({ code: 200, message: '密码修改成功' });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '修改密码失败' });
+    }
+});
+
+// ==================== 公告管理 ====================
+
+router.get('/announcements', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const announcements = await db.query('SELECT * FROM announcements ORDER BY sort_order ASC, created_at DESC');
+        res.json({ code: 200, data: announcements });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '获取公告失败' });
+    }
+});
+
+router.post('/announcements', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { type, content, media_url, link, bg_color, status, sort_order } = req.body;
+        if (!content) return res.status(400).json({ code: 400, message: '公告内容不能为空' });
+
+        const result = await db.query(`
+            INSERT INTO announcements (type, content, media_url, link, bg_color, status, sort_order, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id
+        `, [type || 'text', content, media_url || null, link || null, bg_color || '#6366f1', status !== undefined ? status : 1, sort_order || 0]);
+        res.json({ code: 200, message: '公告创建成功', data: { id: result[0]?.id || result.insertId } });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '创建公告失败' });
+    }
+});
+
+router.put('/announcements/:id', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type, content, media_url, link, bg_color, status, sort_order } = req.body;
+        const fields = [];
+        const params = [];
+        let paramIndex = 1;
+
+        if (type !== undefined) { fields.push(`type = $${paramIndex++}`); params.push(type); }
+        if (content !== undefined) { fields.push(`content = $${paramIndex++}`); params.push(content); }
+        if (media_url !== undefined) { fields.push(`media_url = $${paramIndex++}`); params.push(media_url || null); }
+        if (link !== undefined) { fields.push(`link = $${paramIndex++}`); params.push(link || null); }
+        if (bg_color !== undefined) { fields.push(`bg_color = $${paramIndex++}`); params.push(bg_color); }
+        if (status !== undefined) { fields.push(`status = $${paramIndex++}`); params.push(status); }
+        if (sort_order !== undefined) { fields.push(`sort_order = $${paramIndex++}`); params.push(sort_order); }
+
+        if (fields.length === 0) return res.status(400).json({ code: 400, message: '没有要更新的字段' });
+
+        params.push(parseInt(id));
+        await db.query(`UPDATE announcements SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex}`, params);
+        res.json({ code: 200, message: '公告更新成功' });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '更新公告失败' });
+    }
+});
+
+router.delete('/announcements/:id', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        await db.query('DELETE FROM announcements WHERE id = $1', [parseInt(req.params.id)]);
+        res.json({ code: 200, message: '公告已删除' });
+    } catch (error) {
+        res.status(500).json({ code: 500, message: '删除失败' });
     }
 });
 
