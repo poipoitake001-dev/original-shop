@@ -33,6 +33,7 @@ const messageRoutes = require('./routes/messages');
 const cronRoutes = require('./routes/cron');
 const seoRoutes = require('./routes/seo');
 const reviewRoutes = require('./routes/reviews');
+const adminRoutes = require('./routes/admin');
 const seoMetaMiddleware = require('./middleware/seoMeta');
 const { verifyToken, verifyAdmin } = require('./middleware/auth');
 
@@ -156,6 +157,7 @@ app.use('/api/user/security', userSecurityRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/cron', cronRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 管理后台统计（管理员）
 app.get('/api/system/status', verifyToken, verifyAdmin, async (req, res) => {
