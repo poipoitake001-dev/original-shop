@@ -422,8 +422,8 @@ async function initDatabase() {
         // 获取分类ID
         const softwareRes = await db.query(`SELECT id FROM categories WHERE slug = 'software'`);
         const gameRes = await db.query(`SELECT id FROM categories WHERE slug = 'game'`);
-        const softwareCatId = softwareRes.rows[0]?.id;
-        const gameCatId = gameRes.rows[0]?.id;
+        const softwareCatId = softwareRes[0]?.id;
+        const gameCatId = gameRes[0]?.id;
 
         // 插入默认商品（使用实际的分类ID）
         if (softwareCatId) {
