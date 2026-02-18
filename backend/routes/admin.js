@@ -392,7 +392,7 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
 
         fields.forEach(f => {
             if (req.body[f] !== undefined) {
-                updateFields.push(`${f} = ${paramIndex++}`);
+                updateFields.push(`${f} = $${paramIndex++}`);
                 // 特殊类型处理
                 if (f === 'withdrawal_fee_percent' || f === 'withdrawal_min_fee') {
                     params.push(parseFloat(req.body[f]) || 0);
