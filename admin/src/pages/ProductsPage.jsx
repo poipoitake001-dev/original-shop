@@ -10,7 +10,7 @@ const ProductsPage = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [expandedProduct, setExpandedProduct] = useState(null)
-  const [form, setForm] = useState({ title: '', description: '', price: '', category_id: '', icon: '📦' })
+  const [form, setForm] = useState({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto' })
 
   useEffect(() => {
     loadProducts()
@@ -40,7 +40,7 @@ const ProductsPage = () => {
     if (res.code === 200) {
       setShowForm(false)
       setEditingProduct(null)
-      setForm({ title: '', description: '', price: '', category_id: '', icon: '📦' })
+      setForm({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto' })
       loadProducts()
     } else {
       alert(res.message || '操作失败')
@@ -54,7 +54,8 @@ const ProductsPage = () => {
       description: product.description || '',
       price: product.price || '',
       category_id: product.category_id || '',
-      icon: product.icon || '📦'
+      icon: product.icon || '📦',
+      delivery_type: product.delivery_type || 'auto'
     })
     setShowForm(true)
   }
@@ -106,6 +107,15 @@ const ProductsPage = () => {
                   <option value="">选择分类</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">发货方式</label>
+                <select value={form.delivery_type} onChange={(e) => setForm({ ...form, delivery_type: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg">
+                  <option value="auto">自动发货（卡密）</option>
+                  <option value="manual">手动发货</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-1">自动发货：支付成功后自动发送卡密</p>
               </div>
               <div>
                 <label className="block text-sm text-slate-400 mb-1">图标</label>

@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, ShoppingCart, Users, Settings,
-  LogOut, Shield, Layers, RefreshCw, Plus, Trash2, Search
+  LogOut, Shield, Layers, RefreshCw, Plus, Trash2, Search,
+  Megaphone, Palette, User
 } from 'lucide-react'
 import { adminRequest, getToken, setToken, clearToken } from './utils/api'
 import { LoginPage, Dashboard, OrdersPage } from './pages/index'
 import ProductsPage from './pages/ProductsPage'
+import AnnouncementsPage from './pages/AnnouncementsPage'
+import ShopDesignPage from './pages/ShopDesignPage'
+import AccountPage from './pages/AccountPage'
 
 // ==================== 分类管理 ====================
 const CategoriesPage = () => {
@@ -164,61 +168,6 @@ const UsersPage = () => {
   )
 }
 
-// ==================== 设置页面 ====================
-const SettingsPage = () => {
-  const [settings, setSettings] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => { loadSettings() }, [])
-
-  const loadSettings = async () => {
-    setLoading(true)
-    const res = await adminRequest('/admin/settings')
-    if (res.code === 200) setSettings(res.data || {})
-    setLoading(false)
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    const res = await adminRequest('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) })
-    setSaving(false)
-    if (res.code === 200) alert('保存成功')
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">系统设置</h1>
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-          {saving ? '保存中...' : '保存设置'}
-        </button>
-      </div>
-      {loading ? (
-        <p className="text-slate-400">加载中...</p>
-      ) : (
-        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-4 max-w-xl">
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">站点名称</label>
-            <input type="text" value={settings.site_name || ''} onChange={(e) => setSettings({ ...settings, site_name: e.target.value })}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg" />
-          </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">站点描述</label>
-            <textarea value={settings.site_description || ''} onChange={(e) => setSettings({ ...settings, site_description: e.target.value })}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg h-24" />
-          </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-2">联系邮箱</label>
-            <input type="email" value={settings.contact_email || ''} onChange={(e) => setSettings({ ...settings, contact_email: e.target.value })}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg" />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ==================== 主布局 ====================
 const AdminLayout = ({ onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -228,8 +177,10 @@ const AdminLayout = ({ onLogout }) => {
     { path: '/orders', label: '订单管理', icon: ShoppingCart },
     { path: '/products', label: '商品管理', icon: Package },
     { path: '/categories', label: '分类管理', icon: Layers },
+    { path: '/announcements', label: '公告管理', icon: Megaphone },
+    { path: '/design', label: '店铺装修', icon: Palette },
     { path: '/users', label: '用户管理', icon: Users },
-    { path: '/settings', label: '系统设置', icon: Settings },
+    { path: '/account', label: '账号管理', icon: User },
   ]
 
   const handleLogout = () => { clearToken(); onLogout() }
@@ -267,8 +218,10 @@ const AdminLayout = ({ onLogout }) => {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/design" element={<ShopDesignPage />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

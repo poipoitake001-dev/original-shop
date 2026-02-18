@@ -168,14 +168,14 @@ router.get('/products', verifyToken, verifyAdmin, async (req, res) => {
 
 router.post('/products', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { title, description, price, category_id, image_url, icon } = req.body;
+        const { title, description, price, category_id, image_url, icon, delivery_type } = req.body;
         if (!title || !price) {
             return res.status(400).json({ code: 400, message: '商品名称和价格不能为空' });
         }
         const result = await db.query(`
-            INSERT INTO products (title, description, price, category_id, image_url, icon, stock, status, audit_status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, 0, 1, 'approved', NOW(), NOW()) RETURNING id
-        `, [title, description || '', parseFloat(price), category_id || null, image_url || null, icon || '📦']);
+            INSERT INTO products (title, description, price, category_id, image_url, icon, delivery_type, stock, status, audit_status, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 1, 'approved', NOW(), NOW()) RETURNING id
+        `, [title, description || '', parseFloat(price), category_id || null, image_url || null, icon || '📦', delivery_type || 'auto']);
         res.json({ code: 200, message: '商品创建成功', data: { id: result[0]?.id || result.insertId } });
     } catch (error) {
         res.status(500).json({ code: 500, message: '创建商品失败' });
@@ -185,12 +185,12 @@ router.post('/products', verifyToken, verifyAdmin, async (req, res) => {
 router.put('/products/:id', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, price, category_id, image_url, icon, status } = req.body;
+        const { title, description, price, category_id, image_url, icon, status, delivery_type } = req.body;
         await db.query(`
             UPDATE products SET title = COALESCE($1, title), description = COALESCE($2, description),
             price = COALESCE($3, price), category_id = COALESCE($4, category_id), image_url = COALESCE($5, image_url),
-            icon = COALESCE($6, icon), status = COALESCE($7, status), updated_at = NOW() WHERE id = $8
-        `, [title, description, price ? parseFloat(price) : null, category_id, image_url, icon, status, id]);
+            icon = COALESCE($6, icon), status = COALESCE($7, status), delivery_type = COALESCE($8, delivery_type), updated_at = NOW() WHERE id = $9
+        `, [title, description, price ? parseFloat(price) : null, category_id, image_url, icon, status, delivery_type, id]);
         res.json({ code: 200, message: '商品更新成功' });
     } catch (error) {
         res.status(500).json({ code: 500, message: '更新商品失败' });
