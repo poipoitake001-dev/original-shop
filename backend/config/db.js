@@ -65,9 +65,22 @@ function convertSQL(sql, params) {
 async function query(sql, params) {
     try {
         const safeParams = Array.isArray(params) ? params : [];
-        const convertedSQL = convertSQL(sql, safeParams);
+        let convertedSQL = convertSQL(sql, safeParams);
+        
+        // 如果是 INSERT 语句且没有 RETURNING，自动添加
+        const isInsert = /^\s*INSERT\s+INTO/i.test(convertedSQL);
+        if (isInsert && !convertedSQL.toLowerCase().includes('returning')) {
+            convertedSQL += ' RETURNING id';
+        }
+        
         const result = await pool.query(convertedSQL, safeParams);
-        return result.rows;
+        
+        // 返回带有兼容属性的数组
+        const rows = result.rows;
+        rows.insertId = result.rows[0]?.id;
+        rows.affectedRows = result.rowCount;
+        rows.changedRows = result.rowCount;
+        return rows;
     } catch (error) {
         console.error('SQL 执行错误:', error.message);
         console.error('Original SQL:', sql);

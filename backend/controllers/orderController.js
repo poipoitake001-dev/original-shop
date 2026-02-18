@@ -762,7 +762,7 @@ async function paymentNotify(req, res) {
         const updateParams = [newOrderStatus];
         
         if (payment_id) {
-            updateFields.push('remark = CONCAT(IFNULL(remark, ""), ?)');
+            updateFields.push('remark = COALESCE(remark, \'\') || ?');
             updateParams.push(' 支付交易号: ' + payment_id);
         }
         

@@ -309,16 +309,16 @@ router.put('/', verifyToken, verifyAdmin, verifyPaymentToken, async (req, res) =
             system2_config_length: system2ConfigStr.length
         });
 
-        // 6. 使用 MySQL UPSERT 语法 - INSERT ... ON DUPLICATE KEY UPDATE
+        // 6. 使用 PostgreSQL UPSERT 语法 - INSERT ... ON CONFLICT
         // 这确保了无论记录是否存在，都能正确保存
         const upsertSQL = `
             INSERT INTO payment_config (id, system1_enabled, system1_config, system2_enabled, system2_config, updated_at)
-            VALUES (1, ?, ?, ?, ?, NOW())
-            ON DUPLICATE KEY UPDATE
-                system1_enabled = VALUES(system1_enabled),
-                system1_config = VALUES(system1_config),
-                system2_enabled = VALUES(system2_enabled),
-                system2_config = VALUES(system2_config),
+            VALUES (1, $1, $2, $3, $4, NOW())
+            ON CONFLICT (id) DO UPDATE SET
+                system1_enabled = EXCLUDED.system1_enabled,
+                system1_config = EXCLUDED.system1_config,
+                system2_enabled = EXCLUDED.system2_enabled,
+                system2_config = EXCLUDED.system2_config,
                 updated_at = NOW()
         `;
 

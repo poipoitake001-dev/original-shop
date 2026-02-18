@@ -404,115 +404,132 @@ async function initDatabase() {
         }
         console.log('✓ 索引已创建');
 
-        // ========== 插入种子数据 ==========
+        // ========== 插入种子数据（使用 try-catch 忽略重复错误）==========
         
-        // 插入默认分类（使用 UPSERT 确保存在）
-        await db.query(`
-            INSERT INTO categories (name, slug, description, icon, sort_order, created_at, updated_at)
-            VALUES ('软件激活码', 'software', '各类正版软件激活码', '⚡', 1, NOW(), NOW())
-            ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-        `);
-        await db.query(`
-            INSERT INTO categories (name, slug, description, icon, sort_order, created_at, updated_at)
-            VALUES ('游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2, NOW(), NOW())
-            ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-        `);
-        console.log('✓ 默认分类已插入');
+        // 插入默认分类
+        try {
+            await db.query(`
+                INSERT INTO categories (name, slug, description, icon, sort_order)
+                VALUES ('软件激活码', 'software', '各类正版软件激活码', '⚡', 1)
+                ON CONFLICT (slug) DO NOTHING
+            `);
+            await db.query(`
+                INSERT INTO categories (name, slug, description, icon, sort_order)
+                VALUES ('游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2)
+                ON CONFLICT (slug) DO NOTHING
+            `);
+            console.log('✓ 默认分类已插入');
+        } catch (e) { console.log('分类已存在，跳过'); }
 
-        // 获取分类ID
-        const softwareRes = await db.query(`SELECT id FROM categories WHERE slug = 'software'`);
-        const gameRes = await db.query(`SELECT id FROM categories WHERE slug = 'game'`);
-        const softwareCatId = softwareRes[0]?.id;
-        const gameCatId = gameRes[0]?.id;
+        // 获取分类ID用于插入商品
+        let softwareCatId = 1, gameCatId = 2;
+        try {
+            const cats = await db.query(`SELECT id, slug FROM categories WHERE slug IN ('software', 'game')`);
+            for (const cat of cats) {
+                if (cat.slug === 'software') softwareCatId = cat.id;
+                if (cat.slug === 'game') gameCatId = cat.id;
+            }
+        } catch (e) { /* 使用默认值 */ }
 
-        // 插入默认商品（使用实际的分类ID）
-        if (softwareCatId) {
-            await db.query(`
-                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
-                SELECT $1, 'Cursor月卡（质保一个月）', '正版 Cursor IDE 月度会员', '⚡', 600.00, 100, 'approved'
-                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'Cursor月卡（质保一个月）')
-            `, [softwareCatId]);
-            await db.query(`
-                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
-                SELECT $1, 'Cursor月卡（无质保）', 'Cursor IDE 月度会员，无质保', '📊', 300.00, 100, 'approved'
-                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'Cursor月卡（无质保）')
-            `, [softwareCatId]);
-        }
-        if (gameCatId) {
-            await db.query(`
-                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
-                SELECT $1, 'Steam 充值卡', '全球通用，即时到账', '🎮', 100.00, 500, 'approved'
-                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'Steam 充值卡')
-            `, [gameCatId]);
-            await db.query(`
-                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
-                SELECT $1, 'PlayStation Plus 会员', '畅玩海量游戏', '🏆', 268.00, 200, 'approved'
-                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'PlayStation Plus 会员')
-            `, [gameCatId]);
-        }
-        console.log('✓ 默认商品已插入');
+        // 插入默认商品
+        try {
+            const productExists = await db.query(`SELECT COUNT(*) as cnt FROM products`);
+            if (parseInt(productExists[0]?.cnt || 0) === 0) {
+                await db.query(`
+                    INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                    VALUES ($1, 'Cursor月卡（质保一个月）', '正版 Cursor IDE 月度会员', '⚡', 600.00, 100, 'approved')
+                `, [softwareCatId]);
+                await db.query(`
+                    INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                    VALUES ($1, 'Cursor月卡（无质保）', 'Cursor IDE 月度会员，无质保', '📊', 300.00, 100, 'approved')
+                `, [softwareCatId]);
+                await db.query(`
+                    INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                    VALUES ($1, 'Steam 充值卡', '全球通用，即时到账', '🎮', 100.00, 500, 'approved')
+                `, [gameCatId]);
+                await db.query(`
+                    INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                    VALUES ($1, 'PlayStation Plus 会员', '畅玩海量游戏', '🏆', 268.00, 200, 'approved')
+                `, [gameCatId]);
+                console.log('✓ 默认商品已插入');
+            } else {
+                console.log('✓ 商品已存在，跳过');
+            }
+        } catch (e) { console.log('商品插入跳过:', e.message); }
 
         // 插入管理员 (密码: admin123)
-        await db.query(`
-            INSERT INTO users (id, username, email, password, role, seller_status)
-            VALUES (1, 'admin', 'admin@spacecard.com', '$2a$10$UwrDJmOgfBN/usY2SwetDOTli3pL2ec85Ojf4AWOitagCNPGbSnTO', 'admin', 'none')
-            ON CONFLICT (email) DO NOTHING
-        `);
-        console.log('✓ 管理员账户已创建');
+        try {
+            const adminExists = await db.query(`SELECT id FROM users WHERE username = 'admin' OR email = 'admin@spacecard.com'`);
+            if (adminExists.length === 0) {
+                await db.query(`
+                    INSERT INTO users (username, email, password, role, seller_status)
+                    VALUES ('admin', 'admin@spacecard.com', '$2a$10$UwrDJmOgfBN/usY2SwetDOTli3pL2ec85Ojf4AWOitagCNPGbSnTO', 'admin', 'none')
+                `);
+                console.log('✓ 管理员账户已创建');
+            } else {
+                console.log('✓ 管理员已存在，跳过');
+            }
+        } catch (e) { console.log('管理员创建跳过:', e.message); }
 
         // 插入默认公告
-        await db.query(`
-            INSERT INTO announcements (id, content, link, bg_color, status, sort_order)
-            VALUES (1, '欢迎来到星际卡密商城！新用户首单立减 10 元', NULL, '#6366f1', 1, 1)
-            ON CONFLICT (id) DO NOTHING
-        `);
-        console.log('✓ 默认公告已插入');
+        try {
+            const annExists = await db.query(`SELECT COUNT(*) as cnt FROM announcements`);
+            if (parseInt(annExists[0]?.cnt || 0) === 0) {
+                await db.query(`
+                    INSERT INTO announcements (content, link, bg_color, status, sort_order)
+                    VALUES ('欢迎来到星际卡密商城！新用户首单立减 10 元', NULL, '#6366f1', 1, 1)
+                `);
+                console.log('✓ 默认公告已插入');
+            } else {
+                console.log('✓ 公告已存在，跳过');
+            }
+        } catch (e) { console.log('公告插入跳过:', e.message); }
 
         // 插入默认系统设置
-        await db.query(`
-            INSERT INTO site_settings (id, site_name)
-            VALUES (1, '星际卡密商城')
-            ON CONFLICT (id) DO NOTHING
-        `);
-        console.log('✓ 默认系统设置已插入');
+        try {
+            await db.query(`
+                INSERT INTO site_settings (id, site_name)
+                VALUES (1, '星际卡密商城')
+                ON CONFLICT (id) DO NOTHING
+            `);
+            console.log('✓ 默认系统设置已插入');
+        } catch (e) { console.log('系统设置跳过:', e.message); }
 
         // 插入默认支付配置
-        await db.query(`
-            INSERT INTO payment_config (id, system1_enabled, system1_config, system2_enabled, system2_config)
-            VALUES (1, 0, '{"apiUrl":"","pid":"","key":"","notifyUrl":""}', 0, '{"qrCodeImageUrl":"","instructionText":"请使用微信或支付宝扫描二维码完成支付"}')
-            ON CONFLICT (id) DO NOTHING
-        `);
-        console.log('✓ 默认支付配置已插入');
+        try {
+            await db.query(`
+                INSERT INTO payment_config (id, system1_enabled, system1_config, system2_enabled, system2_config)
+                VALUES (1, 0, '{"apiUrl":"","pid":"","key":"","notifyUrl":""}', 0, '{"qrCodeImageUrl":"","instructionText":"请使用微信或支付宝扫描二维码完成支付"}')
+                ON CONFLICT (id) DO NOTHING
+            `);
+            console.log('✓ 默认支付配置已插入');
+        } catch (e) { console.log('支付配置跳过:', e.message); }
 
         // 插入默认信任徽章
-        const defaultBadges = [
-            { title: '即时发货', description: '系统自动发送卡密', sort_order: 1 },
-            { title: '安全支付', description: '多种支付方式保障', sort_order: 2 },
-            { title: '售后保障', description: '完善的售后服务体系', sort_order: 3 }
-        ];
-        for (const badge of defaultBadges) {
-            await db.query(`
-                INSERT INTO trust_badges (title, description, sort_order)
-                SELECT $1, $2, $3
-                WHERE NOT EXISTS (SELECT 1 FROM trust_badges WHERE title = $1)
-            `, [badge.title, badge.description, badge.sort_order]);
-        }
-        console.log('✓ 信任徽章已初始化');
+        try {
+            const badgeExists = await db.query(`SELECT COUNT(*) as cnt FROM trust_badges`);
+            if (parseInt(badgeExists[0]?.cnt || 0) === 0) {
+                await db.query(`INSERT INTO trust_badges (title, description, sort_order) VALUES ('即时发货', '系统自动发送卡密', 1)`);
+                await db.query(`INSERT INTO trust_badges (title, description, sort_order) VALUES ('安全支付', '多种支付方式保障', 2)`);
+                await db.query(`INSERT INTO trust_badges (title, description, sort_order) VALUES ('售后保障', '完善的售后服务体系', 3)`);
+                console.log('✓ 信任徽章已初始化');
+            } else {
+                console.log('✓ 信任徽章已存在，跳过');
+            }
+        } catch (e) { console.log('信任徽章跳过:', e.message); }
 
         // 插入默认信息页面
-        const defaultPages = [
-            { slug: 'terms', title: '服务条款', content: '欢迎使用星际卡密商城。使用本网站即表示您同意以下条款：\n\n1. 所有商品均为虚拟数字商品，一经售出概不退换。\n2. 请在购买前仔细阅读商品说明。\n3. 严禁将购买的卡密用于任何违法用途。\n4. 我们保留随时修改服务条款的权利。' },
-            { slug: 'privacy', title: '隐私政策', content: '我们重视您的隐私。以下是我们的隐私政策：\n\n1. 我们仅收集提供服务所必需的信息（邮箱地址等）。\n2. 我们不会将您的个人信息出售给第三方。\n3. 卡密信息通过加密传输。\n4. 您可以随时联系我们删除您的账户数据。' },
-            { slug: 'help', title: '帮助中心', content: '常见问题：\n\n**如何购买？**\n选择商品 → 输入邮箱 → 完成支付 → 卡密自动发送到邮箱\n\n**没有收到卡密？**\n请检查垃圾邮件文件夹，或使用订单号查询。\n\n**如何联系客服？**\n点击右下角的客服按钮，或发送邮件至客服邮箱。\n\n**支持哪些支付方式？**\n支持支付宝、微信支付等主流支付方式。' }
-        ];
-        for (const page of defaultPages) {
-            await db.query(`
-                INSERT INTO info_pages (slug, title, content)
-                SELECT $1, $2, $3
-                WHERE NOT EXISTS (SELECT 1 FROM info_pages WHERE slug = $1)
-            `, [page.slug, page.title, page.content]);
-        }
-        console.log('✓ 信息页面已初始化');
+        try {
+            const pagesExist = await db.query(`SELECT COUNT(*) as cnt FROM info_pages`);
+            if (parseInt(pagesExist[0]?.cnt || 0) === 0) {
+                await db.query(`INSERT INTO info_pages (slug, title, content) VALUES ('terms', '服务条款', '欢迎使用星际卡密商城。')`);
+                await db.query(`INSERT INTO info_pages (slug, title, content) VALUES ('privacy', '隐私政策', '我们重视您的隐私。')`);
+                await db.query(`INSERT INTO info_pages (slug, title, content) VALUES ('help', '帮助中心', '常见问题解答。')`);
+                console.log('✓ 信息页面已初始化');
+            } else {
+                console.log('✓ 信息页面已存在，跳过');
+            }
+        } catch (e) { console.log('信息页面跳过:', e.message); }
 
         // 重置序列（确保自增ID正确）
         const sequences = [
