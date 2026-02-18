@@ -406,40 +406,50 @@ async function initDatabase() {
 
         // ========== 插入种子数据 ==========
         
-        // 插入默认分类
+        // 插入默认分类（使用 UPSERT 确保存在）
         await db.query(`
-            INSERT INTO categories (id, name, slug, description, icon, sort_order, created_at, updated_at)
-            VALUES (1, '软件激活码', 'software', '各类正版软件激活码', '⚡', 1, NOW(), NOW())
-            ON CONFLICT (slug) DO NOTHING
+            INSERT INTO categories (name, slug, description, icon, sort_order, created_at, updated_at)
+            VALUES ('软件激活码', 'software', '各类正版软件激活码', '⚡', 1, NOW(), NOW())
+            ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
         `);
         await db.query(`
-            INSERT INTO categories (id, name, slug, description, icon, sort_order, created_at, updated_at)
-            VALUES (2, '游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2, NOW(), NOW())
-            ON CONFLICT (slug) DO NOTHING
+            INSERT INTO categories (name, slug, description, icon, sort_order, created_at, updated_at)
+            VALUES ('游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2, NOW(), NOW())
+            ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
         `);
         console.log('✓ 默认分类已插入');
 
-        // 插入默认商品
-        await db.query(`
-            INSERT INTO products (id, category_id, title, description, icon, price, stock, audit_status)
-            VALUES (1, 1, 'Cursor月卡（质保一个月）', '正版 Cursor IDE 月度会员', '⚡', 600.00, 100, 'approved')
-            ON CONFLICT (id) DO NOTHING
-        `);
-        await db.query(`
-            INSERT INTO products (id, category_id, title, description, icon, price, stock, audit_status)
-            VALUES (2, 1, 'Cursor月卡（无质保）', 'Cursor IDE 月度会员，无质保', '📊', 300.00, 100, 'approved')
-            ON CONFLICT (id) DO NOTHING
-        `);
-        await db.query(`
-            INSERT INTO products (id, category_id, title, description, icon, price, stock, audit_status)
-            VALUES (3, 2, 'Steam 充值卡', '全球通用，即时到账', '🎮', 100.00, 500, 'approved')
-            ON CONFLICT (id) DO NOTHING
-        `);
-        await db.query(`
-            INSERT INTO products (id, category_id, title, description, icon, price, stock, audit_status)
-            VALUES (4, 2, 'PlayStation Plus 会员', '畅玩海量游戏', '🏆', 268.00, 200, 'approved')
-            ON CONFLICT (id) DO NOTHING
-        `);
+        // 获取分类ID
+        const softwareRes = await db.query(`SELECT id FROM categories WHERE slug = 'software'`);
+        const gameRes = await db.query(`SELECT id FROM categories WHERE slug = 'game'`);
+        const softwareCatId = softwareRes.rows[0]?.id;
+        const gameCatId = gameRes.rows[0]?.id;
+
+        // 插入默认商品（使用实际的分类ID）
+        if (softwareCatId) {
+            await db.query(`
+                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                SELECT $1, 'Cursor月卡（质保一个月）', '正版 Cursor IDE 月度会员', '⚡', 600.00, 100, 'approved'
+                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'Cursor月卡（质保一个月）')
+            `, [softwareCatId]);
+            await db.query(`
+                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                SELECT $1, 'Cursor月卡（无质保）', 'Cursor IDE 月度会员，无质保', '📊', 300.00, 100, 'approved'
+                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'Cursor月卡（无质保）')
+            `, [softwareCatId]);
+        }
+        if (gameCatId) {
+            await db.query(`
+                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                SELECT $1, 'Steam 充值卡', '全球通用，即时到账', '🎮', 100.00, 500, 'approved'
+                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'Steam 充值卡')
+            `, [gameCatId]);
+            await db.query(`
+                INSERT INTO products (category_id, title, description, icon, price, stock, audit_status)
+                SELECT $1, 'PlayStation Plus 会员', '畅玩海量游戏', '🏆', 268.00, 200, 'approved'
+                WHERE NOT EXISTS (SELECT 1 FROM products WHERE title = 'PlayStation Plus 会员')
+            `, [gameCatId]);
+        }
         console.log('✓ 默认商品已插入');
 
         // 插入管理员 (密码: admin123)
