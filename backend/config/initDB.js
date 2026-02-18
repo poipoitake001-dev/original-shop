@@ -456,7 +456,7 @@ async function initDatabase() {
         await db.query(`
             INSERT INTO users (id, username, email, password, role, seller_status)
             VALUES (1, 'admin', 'admin@spacecard.com', '$2a$10$UwrDJmOgfBN/usY2SwetDOTli3pL2ec85Ojf4AWOitagCNPGbSnTO', 'admin', 'none')
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (email) DO NOTHING
         `);
         console.log('✓ 管理员账户已创建');
 
