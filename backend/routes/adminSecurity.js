@@ -18,7 +18,7 @@ const db = require('../config/db');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
 // JWT 密钥（与主认证系统共享）
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'space-card-shop-secret-key';
 
 // 支付验证令牌有效期（5分钟）
 const PAYMENT_TOKEN_EXPIRES = '5m';

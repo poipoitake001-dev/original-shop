@@ -17,7 +17,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { verifyToken } = require('../middleware/auth');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'space-card-shop-secret-key';
 
 /**
  * POST /set-payment-password

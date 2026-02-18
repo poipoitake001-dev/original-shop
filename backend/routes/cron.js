@@ -16,17 +16,28 @@ const router = express.Router();
 const db = require('../config/db');
 
 const CRON_SECRET = process.env.CRON_SECRET || 'default-cron-secret-change-me';
+if (!process.env.CRON_SECRET || process.env.CRON_SECRET === 'default-cron-secret-change-me') {
+    console.warn('⚠ 警告: 未设置 CRON_SECRET 环境变量，定时任务接口使用默认密钥不安全！');
+}
 const ORDER_TIMEOUT_MINUTES = 15;
 
 /**
  * 验证 Cron Secret 中间件
+ * 使用时间安全比较防止时序攻击
  */
 function verifyCronSecret(req, res, next) {
     const secret = req.headers['x-cron-secret'];
-    if (!secret || secret !== CRON_SECRET) {
+    if (!secret || !timingSafeEqual(secret, CRON_SECRET)) {
         return res.status(403).json({ code: 403, message: 'Unauthorized' });
     }
     next();
+}
+
+function timingSafeEqual(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    if (a.length !== b.length) return false;
+    const crypto = require('crypto');
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 /**

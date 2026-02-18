@@ -62,12 +62,14 @@ const limiter = new SlidingWindowLimiter();
 
 /**
  * 获取客户端真实 IP
+ * 注意：仅在信任反向代理时使用 x-forwarded-for
  */
 function getClientIP(req) {
-    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-           req.headers['x-real-ip'] ||
+    // 优先使用 Express 的 req.ip（受 trust proxy 设置控制）
+    // 如果配置了 trust proxy，req.ip 会正确解析 x-forwarded-for
+    // 如果没配置，req.ip 返回直连 IP，防止伪造
+    return req.ip || 
            req.connection?.remoteAddress ||
-           req.ip ||
            'unknown';
 }
 

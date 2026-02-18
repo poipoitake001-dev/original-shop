@@ -40,11 +40,31 @@ const { verifyToken, verifyAdmin } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 信任反向代理（Render/Railway 等平台），使 req.ip 正确解析
+app.set('trust proxy', 1);
+
 // ========== CORS 配置 - 必须放在最前面 ==========
+
+// 允许的来源列表（从环境变量读取，逗号分隔）
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+
+function isOriginAllowed(origin) {
+    // 无 origin（如服务器间调用、支付回调）放行
+    if (!origin) return true;
+    // 如果没配置白名单，允许所有（开发模式）
+    if (ALLOWED_ORIGINS.length === 0) return true;
+    return ALLOWED_ORIGINS.some(allowed => {
+        if (allowed === '*') return true;
+        return origin === allowed || origin.endsWith('.' + allowed.replace(/^https?:\/\//, ''));
+    });
+}
 
 // 处理所有 OPTIONS 预检请求（最高优先级）
 app.options('*', (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (isOriginAllowed(origin)) {
+        res.header('Access-Control-Allow-Origin', origin || '*');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Payment-Token');
     res.header('Access-Control-Max-Age', '86400');
@@ -53,7 +73,10 @@ app.options('*', (req, res) => {
 
 // 所有请求添加 CORS 头
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (isOriginAllowed(origin)) {
+        res.header('Access-Control-Allow-Origin', origin || '*');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Payment-Token');
     next();
@@ -69,7 +92,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://www.googletagmanager.com", "https://hm.baidu.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://www.googletagmanager.com", "https://hm.baidu.com"],
             scriptSrcAttr: ["'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
@@ -99,10 +122,13 @@ app.use('/api', globalLimiter);
 
 // 认证路由加强限速（每分钟/5次）
 app.use('/api/auth/login', authLimiter);
+app.use('/api/admin/login', authLimiter);
 app.use('/api/customer/login', authLimiter);
 app.use('/api/customer/register', authLimiter);
 app.use('/api/user/security/verify-security-question', authLimiter);
 app.use('/api/user/security/reset-password-via-security', authLimiter);
+app.use('/api/settings/security/question', authLimiter);
+app.use('/api/settings/security/reset', authLimiter);
 
 // 订单路由限速（每分钟/10次）
 app.use('/api/orders', orderLimiter);
@@ -5599,11 +5625,13 @@ app.use((req, res, next) => {
 
 // 全局错误处理
 app.use((err, req, res, next) => {
-    console.error('服务器错误:', err);
+    // 只记录错误类型和消息，不记录完整堆栈中的敏感信息
+    console.error('服务器错误:', err.message);
+    
+    // 不向客户端暴露任何内部错误细节
     res.status(500).json({
         code: 500,
-        message: '服务器内部错误',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        message: '服务器内部错误'
     });
 });
 
@@ -5679,3 +5707,13 @@ async function startServer() {
 }
 
 startServer();
+
+// ========== 未处理异常捕获，防止进程崩溃 ==========
+process.on('uncaughtException', (err) => {
+    console.error('未捕获的异常:', err.message);
+    // 不立即退出，给正在处理的请求一点时间
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('未处理的 Promise 拒绝:', reason instanceof Error ? reason.message : reason);
+});

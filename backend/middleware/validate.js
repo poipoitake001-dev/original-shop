@@ -223,12 +223,44 @@ const schemas = {
  */
 function sanitizeBody(req, res, next) {
     if (req.body && typeof req.body === 'object') {
-        // 防止原型污染
-        delete req.body.__proto__;
-        delete req.body.constructor;
-        delete req.body.prototype;
+        req.body = deepSanitize(req.body);
     }
     next();
+}
+
+/**
+ * 递归清洗对象：移除原型污染键 + HTML 转义字符串
+ */
+function deepSanitize(obj, depth = 0) {
+    // 防止深层嵌套攻击
+    if (depth > 10) return {};
+    
+    if (Array.isArray(obj)) {
+        return obj.map(item => {
+            if (typeof item === 'string') return escapeHtml(item);
+            if (item && typeof item === 'object') return deepSanitize(item, depth + 1);
+            return item;
+        });
+    }
+    
+    if (obj && typeof obj === 'object') {
+        const dangerousKeys = ['__proto__', 'constructor', 'prototype', '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__'];
+        const cleaned = {};
+        for (const key of Object.keys(obj)) {
+            if (dangerousKeys.includes(key)) continue;
+            const val = obj[key];
+            if (typeof val === 'string') {
+                // 不转义 base64 图片数据和 URL
+                cleaned[key] = (val.startsWith('data:') || val.startsWith('http://') || val.startsWith('https://')) ? val : escapeHtml(val);
+            } else if (val && typeof val === 'object') {
+                cleaned[key] = deepSanitize(val, depth + 1);
+            } else {
+                cleaned[key] = val;
+            }
+        }
+        return cleaned;
+    }
+    return obj;
 }
 
 module.exports = {

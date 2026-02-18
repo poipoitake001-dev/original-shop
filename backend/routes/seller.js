@@ -423,6 +423,16 @@ router.post('/cardkeys/:productId/import', verifyToken, verifySeller, async (req
             keyList = card_keys.split(/[;；\n\r]+/).map(k => k.trim()).filter(k => k);
         }
 
+        // 限制单次导入数量，防止内存耗尽
+        const MAX_IMPORT = 5000;
+        if (keyList.length === 0) {
+            return res.status(400).json({ code: 400, message: '未解析到有效卡密' });
+        }
+        if (keyList.length > MAX_IMPORT) {
+            return res.status(400).json({ code: 400, message: `单次最多导入 ${MAX_IMPORT} 个卡密，当前 ${keyList.length} 个` });
+        }
+        }
+
         if (keyList.length === 0) {
             return res.status(400).json({ code: 400, message: '未检测到有效的卡密' });
         }

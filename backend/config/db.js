@@ -83,9 +83,8 @@ async function query(sql, params) {
         return rows;
     } catch (error) {
         console.error('SQL 执行错误:', error.message);
-        console.error('Original SQL:', sql);
-        console.error('Converted SQL:', convertSQL(sql, params));
-        console.error('Params:', params);
+        console.error('SQL:', sql.substring(0, 200));
+        // 不打印 params，防止泄露密码、密钥等敏感数据
         throw error;
     }
 }

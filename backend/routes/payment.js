@@ -42,6 +42,18 @@ router.post('/create', async (req, res) => {
             });
         }
 
+        // 验证订单存在且金额匹配，防止伪造支付请求
+        const orders = await db.query('SELECT id, total_price, status FROM orders WHERE id = ? AND order_no = ?', [orderId, orderNo]);
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ code: 404, message: '订单不存在' });
+        }
+        if (orders[0].status !== 'pending') {
+            return res.status(400).json({ code: 400, message: '订单状态不允许支付' });
+        }
+        if (Math.abs(parseFloat(orders[0].total_price) - parseFloat(amount)) > 0.01) {
+            return res.status(400).json({ code: 400, message: '支付金额不匹配' });
+        }
+
         // 获取支付配置
         const configs = await db.query('SELECT * FROM payment_config WHERE id = 1');
         
@@ -209,8 +221,7 @@ async function handlePaymentNotify(req, res) {
             
             if (params.sign !== expectedSign) {
                 console.error('[支付回调] 签名验证失败!', { orderNo, received: params.sign, expected: expectedSign });
-                // 生产环境可取消注释下一行来拒绝无效签名
-                // return res.send('fail');
+                return res.send('fail');
             } else {
                 console.log('[支付回调] 签名验证通过:', orderNo);
             }
@@ -253,8 +264,7 @@ async function handlePaymentNotify(req, res) {
             const orderAmount = parseFloat(order.total_price);
             if (Math.abs(paidAmount - orderAmount) > 0.01) {
                 console.error('[支付回调] 金额不匹配!', orderNo, '支付:', paidAmount, '订单:', orderAmount);
-                // 生产环境可取消注释下一行
-                // return res.send('fail');
+                return res.send('fail');
             }
         }
 

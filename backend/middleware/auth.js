@@ -6,9 +6,10 @@
  */
 
 const jwt = require('jsonwebtoken');
+const db = require('../config/db');
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'space-card-shop-secret-key';
 
 /**
  * 验证JWT Token
@@ -89,8 +90,9 @@ function optionalToken(req, res, next) {
 /**
  * 验证管理员权限
  * 需要先通过 verifyToken 中间件
+ * 从数据库实时查询角色，防止 JWT 中的 role 过期
  */
-function verifyAdmin(req, res, next) {
+async function verifyAdmin(req, res, next) {
     if (!req.user) {
         return res.status(401).json({
             code: 401,
@@ -98,11 +100,25 @@ function verifyAdmin(req, res, next) {
         });
     }
     
+    // JWT 中的 role 快速预检
     if (req.user.role !== 'admin') {
         return res.status(403).json({
             code: 403,
             message: '权限不足，需要管理员权限'
         });
+    }
+    
+    // 数据库实时校验角色
+    try {
+        const users = await db.query('SELECT role FROM users WHERE id = ?', [req.user.id]);
+        if (!users || users.length === 0 || users[0].role !== 'admin') {
+            return res.status(403).json({
+                code: 403,
+                message: '权限不足，管理员权限已变更'
+            });
+        }
+    } catch (error) {
+        return res.status(500).json({ code: 500, message: '权限验证失败' });
     }
     
     next();

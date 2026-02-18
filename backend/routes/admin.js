@@ -13,6 +13,9 @@ const jwt = require('jsonwebtoken');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'space-card-shop-secret-key';
+if (!process.env.JWT_SECRET) {
+    console.warn('⚠ 警告: 未设置 JWT_SECRET 环境变量，使用默认密钥不安全！请在 .env 中设置强随机密钥');
+}
 
 /**
  * 管理员登录
@@ -120,7 +123,14 @@ router.patch('/orders/:id/status', verifyToken, verifyAdmin, async (req, res) =>
     try {
         const { id } = req.params;
         const { status } = req.body;
-        await db.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+        
+        // 订单状态白名单校验
+        const allowedStatuses = ['pending', 'paid', 'delivered', 'completed', 'cancelled', 'refunded'];
+        if (!status || !allowedStatuses.includes(status)) {
+            return res.status(400).json({ code: 400, message: '无效的订单状态' });
+        }
+        
+        await db.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2', [status, parseInt(id)]);
         res.json({ code: 200, message: '订单状态已更新' });
     } catch (error) {
         res.status(500).json({ code: 500, message: '更新失败' });
@@ -417,8 +427,7 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
         res.json({ code: 200, message: '设置已更新' });
     } catch (error) {
         console.error('Update settings error:', error.message);
-        console.error('Error detail:', error);
-        res.status(500).json({ code: 500, message: '更新失败: ' + error.message });
+        res.status(500).json({ code: 500, message: '更新失败' });
     }
 });
 

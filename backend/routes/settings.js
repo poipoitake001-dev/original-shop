@@ -398,15 +398,30 @@ router.get('/security/question', async (req, res) => {
             code: 200,
             data: {
                 has_security: true,
-                admin_id: admins[0].id,
+                // 不暴露真实 admin_id
                 security_question: admins[0].security_question
             }
         });
     } catch (error) {
-        console.error('获取密保问题失败:', error);
+        console.error('获取密保问题失败:', error.message);
         res.status(500).json({ code: 500, message: '获取密保问题失败' });
     }
 });
+
+// 密保重置失败计数器（IP 维度）
+const resetAttempts = new Map();
+const RESET_MAX_ATTEMPTS = 5;
+const RESET_LOCK_MINUTES = 30;
+
+// 定期清理过期记录
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of resetAttempts) {
+        if (now - val.firstAttempt > RESET_LOCK_MINUTES * 60 * 1000) {
+            resetAttempts.delete(key);
+        }
+    }
+}, 5 * 60 * 1000);
 
 /**
  * 通过密保重置账号密码（公开接口）
@@ -414,39 +429,57 @@ router.get('/security/question', async (req, res) => {
  */
 router.post('/security/reset', async (req, res) => {
     try {
-        const { admin_id, security_answer, new_username, new_email, new_password } = req.body;
+        // 基于 IP 的失败次数锁定
+        const clientIP = req.ip || 'unknown';
+        const attempts = resetAttempts.get(clientIP);
+        if (attempts && attempts.count >= RESET_MAX_ATTEMPTS) {
+            const elapsed = Date.now() - attempts.firstAttempt;
+            if (elapsed < RESET_LOCK_MINUTES * 60 * 1000) {
+                const remainMin = Math.ceil((RESET_LOCK_MINUTES * 60 * 1000 - elapsed) / 60000);
+                return res.status(429).json({ code: 429, message: `尝试次数过多，请 ${remainMin} 分钟后再试` });
+            }
+            resetAttempts.delete(clientIP);
+        }
+
+        const { security_answer, new_username, new_email, new_password } = req.body;
         
-        if (!admin_id || !security_answer) {
-            return res.status(400).json({ code: 400, message: '请提供管理员ID和密保答案' });
+        if (!security_answer) {
+            return res.status(400).json({ code: 400, message: '请提供密保答案' });
         }
         
         if (!new_password || new_password.length < 6) {
             return res.status(400).json({ code: 400, message: '新密码长度不能少于6位' });
         }
         
-        // 获取管理员信息
+        // 自动查找管理员（不依赖客户端传入 admin_id）
         const admins = await db.query(
-            'SELECT id, security_answer FROM users WHERE id = ? AND role = ?',
-            [admin_id, 'admin']
+            'SELECT id, security_answer FROM users WHERE role = ? AND security_answer IS NOT NULL LIMIT 1',
+            ['admin']
         );
         
         if (admins.length === 0) {
-            return res.status(404).json({ code: 404, message: '管理员不存在' });
+            return res.status(404).json({ code: 404, message: '管理员未设置密保' });
         }
         
-        if (!admins[0].security_answer) {
-            return res.status(400).json({ code: 400, message: '该管理员未设置密保' });
-        }
+        const admin = admins[0];
         
         // 验证密保答案（不区分大小写）
         const isMatch = await bcrypt.compare(
             security_answer.toLowerCase().trim(), 
-            admins[0].security_answer
+            admin.security_answer
         );
         
         if (!isMatch) {
-            return res.status(400).json({ code: 400, message: '密保答案错误' });
+            // 记录失败次数
+            const current = resetAttempts.get(clientIP) || { count: 0, firstAttempt: Date.now() };
+            current.count++;
+            resetAttempts.set(clientIP, current);
+            const remaining = RESET_MAX_ATTEMPTS - current.count;
+            return res.status(400).json({ code: 400, message: `密保答案错误，还剩 ${remaining} 次机会` });
         }
+        
+        // 验证通过，清除失败计数
+        resetAttempts.delete(clientIP);
         
         // 构建更新语句
         const updateFields = [];
@@ -460,10 +493,9 @@ router.post('/security/reset', async (req, res) => {
         
         // 更新用户名（如果提供）
         if (new_username && new_username.trim()) {
-            // 检查用户名是否已被使用
             const existingUser = await db.query(
                 'SELECT id FROM users WHERE username = ? AND id != ?',
-                [new_username.trim(), admin_id]
+                [new_username.trim(), admin.id]
             );
             if (existingUser.length > 0) {
                 return res.status(400).json({ code: 400, message: '用户名已被使用' });
@@ -474,10 +506,9 @@ router.post('/security/reset', async (req, res) => {
         
         // 更新邮箱（如果提供）
         if (new_email && new_email.trim()) {
-            // 检查邮箱是否已被使用
             const existingEmail = await db.query(
                 'SELECT id FROM users WHERE email = ? AND id != ?',
-                [new_email.trim(), admin_id]
+                [new_email.trim(), admin.id]
             );
             if (existingEmail.length > 0) {
                 return res.status(400).json({ code: 400, message: '邮箱已被使用' });
@@ -486,7 +517,7 @@ router.post('/security/reset', async (req, res) => {
             params.push(new_email.trim());
         }
         
-        params.push(admin_id);
+        params.push(admin.id);
         await db.query(
             `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
             params
@@ -497,7 +528,7 @@ router.post('/security/reset', async (req, res) => {
             message: '账号重置成功，请使用新的账号密码登录'
         });
     } catch (error) {
-        console.error('重置账号失败:', error);
+        console.error('重置账号失败:', error.message);
         res.status(500).json({ code: 500, message: '重置账号失败' });
     }
 });
