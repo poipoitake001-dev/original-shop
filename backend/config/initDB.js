@@ -64,8 +64,8 @@ async function initDatabase() {
                 image_url VARCHAR(500) DEFAULT NULL,
                 sort_order INT DEFAULT 0,
                 status SMALLINT DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
             )
         `);
         console.log('✓ categories 表已就绪');
@@ -359,6 +359,24 @@ async function initDatabase() {
         `);
         console.log('✓ student_verifications 表已就绪');
 
+        // ========== 修复列默认值（兼容已存在的表）==========
+        const alterDefaults = [
+            "ALTER TABLE categories ALTER COLUMN updated_at SET DEFAULT NOW()",
+            "ALTER TABLE categories ALTER COLUMN created_at SET DEFAULT NOW()",
+            "ALTER TABLE products ALTER COLUMN updated_at SET DEFAULT NOW()",
+            "ALTER TABLE products ALTER COLUMN created_at SET DEFAULT NOW()",
+            "ALTER TABLE users ALTER COLUMN updated_at SET DEFAULT NOW()",
+            "ALTER TABLE users ALTER COLUMN created_at SET DEFAULT NOW()",
+            "ALTER TABLE orders ALTER COLUMN updated_at SET DEFAULT NOW()",
+            "ALTER TABLE orders ALTER COLUMN created_at SET DEFAULT NOW()",
+            "ALTER TABLE announcements ALTER COLUMN updated_at SET DEFAULT NOW()",
+            "ALTER TABLE announcements ALTER COLUMN created_at SET DEFAULT NOW()"
+        ];
+        for (const sql of alterDefaults) {
+            try { await db.query(sql); } catch (e) { /* 忽略错误 */ }
+        }
+        console.log('✓ 列默认值已修复');
+
         // ========== 创建索引 ==========
         const indexes = [
             'CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products(seller_id)',
@@ -390,13 +408,13 @@ async function initDatabase() {
         
         // 插入默认分类
         await db.query(`
-            INSERT INTO categories (id, name, slug, description, icon, sort_order)
-            VALUES (1, '软件激活码', 'software', '各类正版软件激活码', '⚡', 1)
+            INSERT INTO categories (id, name, slug, description, icon, sort_order, created_at, updated_at)
+            VALUES (1, '软件激活码', 'software', '各类正版软件激活码', '⚡', 1, NOW(), NOW())
             ON CONFLICT (id) DO NOTHING
         `);
         await db.query(`
-            INSERT INTO categories (id, name, slug, description, icon, sort_order)
-            VALUES (2, '游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2)
+            INSERT INTO categories (id, name, slug, description, icon, sort_order, created_at, updated_at)
+            VALUES (2, '游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2, NOW(), NOW())
             ON CONFLICT (id) DO NOTHING
         `);
         console.log('✓ 默认分类已插入');
