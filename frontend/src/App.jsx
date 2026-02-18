@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, Link } from 'react-router-dom'
-import { ShoppingBag, Rocket, Menu, X, User, LogOut, Package, Search, Zap, Shield, Award, CreditCard, Store, Bell } from 'lucide-react'
+import { ShoppingBag, Rocket, Menu, X, User, LogOut, Package, Search, Zap, Shield, Award, CreditCard, Bell } from 'lucide-react'
 import { api, API_BASE } from './utils/api'
 import { STOCK_LIMIT } from './utils/storage'
 import Toast from './components/Toast'
@@ -15,11 +15,8 @@ import MyOrdersModal from './components/MyOrdersModal'
 import CoreFeatures from './components/CoreFeatures'
 
 // 懒加载页面
-const SellerLayout = lazy(() => import('./pages/seller/SellerLayout'))
 const AccountLayout = lazy(() => import('./pages/account/AccountLayout'))
-const PublicProfile = lazy(() => import('./pages/PublicProfile'))
 const ProductDetail = lazy(() => import('./pages/ProductDetail'))
-const ApplySellerPage = lazy(() => import('./pages/ApplySellerPage'))
 const UserMessages = lazy(() => import('./pages/UserMessages'))
 const InfoPage = lazy(() => import('./pages/InfoPage'))
 
@@ -27,29 +24,14 @@ const InfoPage = lazy(() => import('./pages/InfoPage'))
 const App = () => {
   return (
     <Routes>
-      <Route path="/seller/*" element={
-        <Suspense fallback={<div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>}>
-          <SellerLayout />
-        </Suspense>
-      } />
       <Route path="/account/*" element={
         <Suspense fallback={<div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>}>
           <AccountLayout />
         </Suspense>
       } />
-      <Route path="/u/:userId" element={
-        <Suspense fallback={<div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>}>
-          <PublicProfile />
-        </Suspense>
-      } />
       <Route path="/p/:id" element={
         <Suspense fallback={<div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>}>
           <ProductDetail />
-        </Suspense>
-      } />
-      <Route path="/apply-seller" element={
-        <Suspense fallback={<div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>}>
-          <ApplySellerPage />
         </Suspense>
       } />
       <Route path="/user/messages" element={
@@ -453,25 +435,6 @@ const StorefrontPage = () => {
                       <Package size={16} className="text-slate-400" />
                       我的订单
                     </button>
-                    {user.role === 'seller' ? (
-                      <Link
-                        to="/seller"
-                        onClick={() => setShowUserMenu(false)}
-                        className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors flex items-center gap-2 text-emerald-400"
-                      >
-                        <Store size={16} />
-                        卖家中心
-                      </Link>
-                    ) : (
-                      <Link
-                        to="/apply-seller"
-                        onClick={() => setShowUserMenu(false)}
-                        className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors flex items-center gap-2 text-blue-400"
-                      >
-                        <Store size={16} />
-                        成为卖家
-                      </Link>
-                    )}
                     <Link
                       to="/account/profile"
                       onClick={() => setShowUserMenu(false)}
