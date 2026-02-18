@@ -1,0 +1,63 @@
+# ============================================================
+# Docker Build Context Ignore
+# Keep the build context small and secure
+# ============================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment & secrets
+.env
+.env.*
+!.env.production
+
+# Documentation
+*.md
+LICENSE
+
+# Node modules (installed inside container)
+node_modules
+frontend/node_modules
+backend/node_modules
+
+# Frontend build output (built inside container)
+frontend/dist
+
+# Copied admin files
+backend/admin-public
+
+# IDE & editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker & deploy scripts (not needed in image)
+docker-compose.yml
+deploy.sh
+nginx/
+certbot/
+backups/
+
+# Dev tools
+*.bat
+*.ps1
+*.exe
+
+# Personal directories (from original .dockerignore)
+Doubao
+Documents
+Music
+Pictures
+Videos

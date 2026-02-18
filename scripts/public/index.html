@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星际卡密商城 — 部署助手</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { theme: { extend: { fontFamily: { mono: ['JetBrains Mono','monospace'] } } } }</script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --cyan:#00f0ff; --purple:#a855f7; --pink:#f43f5e; --green:#22c55e; --bg:#060a14; }
+  * { box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:#e2e8f0; min-height:100vh; }
+  body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background: radial-gradient(ellipse at 15% 50%, rgba(0,240,255,.035) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 15%, rgba(168,85,247,.035) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 85%, rgba(99,102,241,.03) 0%, transparent 50%); }
+  .mono { font-family:'JetBrains Mono',monospace; }
+  .card { background:rgba(15,23,42,.85); border:1px solid rgba(0,240,255,.08); border-radius:16px; backdrop-filter:blur(12px); transition:all .25s; }
+  .card:hover { border-color:rgba(0,240,255,.18); }
+  .btn { padding:10px 20px; border-radius:10px; font-weight:600; font-size:13px; cursor:pointer; transition:all .2s; border:none; display:inline-flex; align-items:center; gap:8px; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; transform:none !important; }
+  .btn-primary { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; }
+  .btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 24px rgba(99,102,241,.35); }
+  .btn-success { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+  .btn-danger { background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; }
+  .btn-ghost { background:transparent; border:1px solid rgba(0,240,255,.2); color:var(--cyan); }
+  .btn-ghost:hover { background:rgba(0,240,255,.06); }
+  .btn-sm { padding:6px 14px; font-size:12px; border-radius:8px; }
+  .input { background:rgba(10,15,30,.9); border:1px solid rgba(0,240,255,.12); color:#e2e8f0; padding:11px 14px; border-radius:10px; font-size:13px; width:100%; outline:none; font-family:'JetBrains Mono',monospace; transition:border .2s; }
+  .input:focus { border-color:var(--cyan); box-shadow:0 0 0 3px rgba(0,240,255,.08); }
+  .input::placeholder { color:#3f4b63; }
+  .terminal { background:#000; border:1px solid #111; border-radius:12px; padding:14px; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.7; height:260px; overflow-y:auto; }
+  .terminal::-webkit-scrollbar { width:5px; }
+  .terminal::-webkit-scrollbar-thumb { background:#1e293b; border-radius:3px; }
+  .t-log { color:#64748b; }
+  .t-ok  { color:#22c55e; }
+  .t-err { color:#f43f5e; }
+  .t-cmd { color:#818cf8; }
+  .badge { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; border:2px solid #1e293b; color:#475569; flex-shrink:0; transition:all .3s; }
+  .badge.active { border-color:#6366f1; color:#6366f1; background:rgba(99,102,241,.1); }
+  .badge.done { border-color:var(--green); color:#fff; background:var(--green); }
+  .opt-card { border:1px solid rgba(0,240,255,.08); border-radius:14px; padding:20px; cursor:pointer; transition:all .25s; background:rgba(15,23,42,.5); }
+  .opt-card:hover { border-color:rgba(0,240,255,.2); background:rgba(15,23,42,.8); transform:translateY(-1px); }
+  .opt-card.sel { border-color:#6366f1; background:rgba(99,102,241,.07); box-shadow:0 0 20px rgba(99,102,241,.1); }
+  .tag { font-size:10px; padding:2px 8px; border-radius:20px; font-weight:500; }
+  .pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:4px 10px; border-radius:20px; font-weight:500; }
+  .pill-ok  { background:rgba(34,197,94,.1); color:#22c55e; border:1px solid rgba(34,197,94,.2); }
+  .pill-err { background:rgba(244,63,94,.1); color:#f43f5e; border:1px solid rgba(244,63,94,.2); }
+  .spin { animation:spin .6s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  .fade-in { animation:fadeIn .3s ease; }
+  .section { margin-bottom:24px; }
+  .section-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="relative z-10 max-w-5xl mx-auto px-4 py-6 sm:py-8">
+
+<!-- ============ 顶部导航 ============ -->
+<header class="flex items-center justify-between mb-8">
+  <div class="flex items-center gap-3">
+    <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20">🚀</div>
+    <div>
+      <h1 class="text-xl font-bold" style="color:var(--cyan)">部署助手</h1>
+      <p class="text-[11px] text-slate-500 mono">星际卡密商城 &middot; v3.1</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="refreshHealth()" class="btn btn-ghost btn-sm">💓 健康检查</button>
+    <button onclick="showBackups()" class="btn btn-ghost btn-sm">💾 数据备份</button>
+  </div>
+</header>
+
+<!-- ============ 第一步：系统检查 ============ -->
+<section class="section">
+  <div class="section-header">
+    <div class="badge active" id="b1">1</div>
+    <div class="flex-1"><h2 class="text-base font-semibold">系统检查</h2><p class="text-[11px] text-slate-500">检测运行环境是否就绪</p></div>
+    <button onclick="doSystemCheck()" class="btn btn-ghost btn-sm">🔄 重新检查</button>
+  </div>
+  <div class="card p-4" id="check-box">
+    <div class="flex items-center justify-center py-8 text-slate-500 text-sm gap-2"><svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> 正在检查...</div>
+  </div>
+</section>
+
+<!-- ============ 第二步：域名配置 ============ -->
+<section class="section">
+  <div class="section-header">
+    <div class="badge" id="b2">2</div>
+    <div class="flex-1"><h2 class="text-base font-semibold">域名配置</h2><p class="text-[11px] text-slate-500">设置前端和后端域名</p></div>
+  </div>
+  <div class="card p-5">
+    <!-- 当前配置 -->
+    <div id="cfg-current" class="text-[11px] mono text-slate-500 p-3 rounded-lg mb-4" style="background:rgba(0,0,0,.4)"></div>
+
+    <!-- 域名输入 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="text-[11px] text-slate-400 mb-1 block">前端域名</label>
+        <input id="inp-fe" class="input" placeholder="my-shop.vercel.app">
+        <p class="text-[10px] text-slate-600 mt-1">Vercel 分配的域名 / 你的自定义域名</p>
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-400 mb-1 block">后端域名</label>
+        <input id="inp-be" class="input" placeholder="my-api.railway.app">
+        <p class="text-[10px] text-slate-600 mt-1">Railway 分配的域名 / VPS 服务器域名</p>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="saveDomain()" class="btn btn-primary" id="btn-save">💾 保存域名</button>
+      <button onclick="genDockerEnv()" class="btn btn-ghost btn-sm" title="自动生成包含随机密码的 Docker 环境变量文件">🐳 生成 Docker .env</button>
+      <button onclick="updateNginx()" class="btn btn-ghost btn-sm" title="自动更新 Nginx 配置中的域名">📝 更新 Nginx 配置</button>
+      <span id="cfg-status" class="text-xs ml-1"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 第三步：部署 ============ -->
+<section class="section">
+  <div class="section-header">
+    <div class="badge" id="b3">3</div>
+    <div class="flex-1"><h2 class="text-base font-semibold">部署上线</h2><p class="text-[11px] text-slate-500">选择部署方式</p></div>
+  </div>
+
+  <!-- 模式选择 -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+    <div class="opt-card" onclick="pickMode('cloud')" id="oc-cloud">
+      <div class="text-2xl mb-2">☁️</div>
+      <h3 class="font-semibold text-sm">云端部署</h3>
+      <p class="text-[11px] text-slate-400 mt-1 mb-2">Vercel + Railway</p>
+      <span class="tag bg-green-500/10 text-green-400 border border-green-500/20">新手推荐</span>
+      <span class="tag bg-blue-500/10 text-blue-400 border border-blue-500/20">免费额度</span>
+    </div>
+    <div class="opt-card" onclick="pickMode('docker')" id="oc-docker">
+      <div class="text-2xl mb-2">🐳</div>
+      <h3 class="font-semibold text-sm">Docker / VPS 部署</h3>
+      <p class="text-[11px] text-slate-400 mt-1 mb-2">自有服务器部署</p>
+      <span class="tag bg-purple-500/10 text-purple-400 border border-purple-500/20">进阶用户</span>
+      <span class="tag bg-orange-500/10 text-orange-400 border border-orange-500/20">完全掌控</span>
+    </div>
+    <div class="opt-card" onclick="pickMode('config')" id="oc-config">
+      <div class="text-2xl mb-2">⚙️</div>
+      <h3 class="font-semibold text-sm">仅保存配置</h3>
+      <p class="text-[11px] text-slate-400 mt-1 mb-2">保存文件，稍后手动部署</p>
+      <span class="tag bg-slate-500/10 text-slate-400 border border-slate-500/20">手动操作</span>
+    </div>
+  </div>
+
+  <!-- 操作面板 -->
+  <div id="panel-wrap" class="hidden">
+    <!-- 云端部署 -->
+    <div id="p-cloud" class="card p-5 hidden fade-in">
+      <h4 class="font-semibold text-sm mb-3">☁️ 云端部署 — Git 推送</h4>
+      <p class="text-xs text-slate-400 mb-3">提交配置更改并推送到 GitHub，Vercel 会自动重新部署前端。</p>
+      <label class="text-[11px] text-slate-400 block mb-1">提交信息</label>
+      <input id="inp-commit" class="input mb-3" value="chore: 更新域名配置">
+      <button onclick="deployCloud()" class="btn btn-primary" id="btn-cloud">🚀 推送并部署</button>
+      <div class="mt-4 p-3 rounded-lg text-[11px] text-slate-400" style="background:rgba(0,0,0,.35)">
+        <p class="font-semibold text-slate-300 mb-1">推送后，还需要在云平台更新环境变量：</p>
+        <ul class="space-y-0.5 list-disc list-inside">
+          <li><a href="https://vercel.com" target="_blank" class="text-cyan-400 hover:underline">Vercel</a> → Settings → Environment Variables → 更新 <code class="text-cyan-300">VITE_API_URL</code></li>
+          <li><a href="https://railway.app" target="_blank" class="text-cyan-400 hover:underline">Railway</a> → Variables → 更新 <code class="text-cyan-300">FRONTEND_URL</code></li>
+          <li>然后重新部署两个项目</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Docker 部署 -->
+    <div id="p-docker" class="card p-5 hidden fade-in">
+      <h4 class="font-semibold text-sm mb-3">🐳 Docker 容器部署</h4>
+      <p class="text-xs text-slate-400 mb-3">构建镜像并启动所有容器（web + mysql + nginx + certbot）。</p>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button onclick="deployDocker()" class="btn btn-primary" id="btn-docker">🐳 构建并启动</button>
+        <button onclick="restartDocker()" class="btn btn-ghost btn-sm">🔄 重启容器</button>
+        <button onclick="stopDocker()" class="btn btn-danger btn-sm">⏹ 停止全部</button>
+      </div>
+      <div id="docker-health" class="mb-2"></div>
+      <p class="text-[10px] text-slate-600">需要本机已安装 Docker 和 Docker Compose。</p>
+    </div>
+
+    <!-- 仅保存配置 -->
+    <div id="p-config" class="card p-5 hidden fade-in">
+      <h4 class="font-semibold text-sm mb-3">⚙️ 配置已保存</h4>
+      <p class="text-xs text-slate-400 mb-3">配置文件已更新完毕，你可以稍后手动部署。</p>
+      <div class="p-3 rounded-lg text-[11px] mono space-y-1" style="background:rgba(0,0,0,.35)">
+        <div class="text-green-400">✓ frontend/.env → VITE_API_URL 已更新</div>
+        <div class="text-green-400">✓ frontend/vercel.json → API 代理已更新</div>
+        <div class="text-green-400">✓ backend/.env → FRONTEND_URL 已更新</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 健康检查面板 ============ -->
+<section id="health-section" class="section hidden">
+  <div class="section-header">
+    <span class="text-lg">💓</span>
+    <div class="flex-1"><h2 class="text-base font-semibold">服务健康状态</h2></div>
+    <button onclick="refreshHealth()" class="btn btn-ghost btn-sm">🔄 刷新</button>
+    <button onclick="document.getElementById('health-section').classList.add('hidden')" class="btn btn-ghost btn-sm">✕</button>
+  </div>
+  <div class="card p-4" id="health-box"><p class="text-slate-500 text-xs text-center py-4">正在检查...</p></div>
+</section>
+
+<!-- ============ 数据备份面板 ============ -->
+<section id="backup-section" class="section hidden">
+  <div class="section-header">
+    <span class="text-lg">💾</span>
+    <div class="flex-1"><h2 class="text-base font-semibold">数据库备份</h2></div>
+    <button onclick="doBackup()" class="btn btn-success btn-sm">+ 新建备份</button>
+    <button onclick="document.getElementById('backup-section').classList.add('hidden')" class="btn btn-ghost btn-sm">✕</button>
+  </div>
+  <div class="card p-4" id="backup-box"><p class="text-slate-500 text-xs text-center py-4">加载中...</p></div>
+</section>
+
+<!-- ============ 终端输出 ============ -->
+<section class="section">
+  <div class="flex items-center gap-2 mb-2">
+    <div class="w-2 h-2 rounded-full bg-green-500" id="sse-dot"></div>
+    <span class="text-[11px] mono text-slate-500">终端输出</span>
+    <button onclick="clearTerm()" class="text-[10px] text-slate-600 hover:text-slate-400 ml-auto">清空</button>
+  </div>
+  <div class="terminal" id="term"><div class="t-log">等待连接...</div></div>
+</section>
+
+<footer class="text-center text-[10px] text-slate-600 pb-6">星际卡密商城 · 部署助手 v3.1 — localhost:9527</footer>
+</div>
+
+<script>
+/* ===== 状态 ===== */
+let mode = null, sse = null;
+
+/* ===== SSE 实时连接 ===== */
+function connectSSE() {
+  if (sse) sse.close();
+  sse = new EventSource('/api/events');
+  sse.onmessage = e => {
+    try {
+      const m = JSON.parse(e.data);
+      if (m.type === 'connected') { tAdd('已连接到部署服务器', 'ok'); sseDot(true); return; }
+      if (m.type === 'log') tAdd(m.data, m.data.startsWith('$') ? 'cmd' : 'log');
+      if (m.type === 'success') tAdd('✓ ' + m.data, 'ok');
+      if (m.type === 'error') tAdd('✗ ' + m.data, 'err');
+    } catch {}
+  };
+  sse.onerror = () => { sseDot(false); tAdd('连接已断开，正在重试...', 'err'); };
+}
+function sseDot(ok) { document.getElementById('sse-dot').style.background = ok ? '#22c55e' : '#f43f5e'; }
+
+/* ===== 终端 ===== */
+function tAdd(text, cls) {
+  const el = document.getElementById('term');
+  const d = document.createElement('div');
+  d.className = 't-' + (cls || 'log');
+  d.textContent = text;
+  el.appendChild(d);
+  while (el.children.length > 500) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+function clearTerm() { document.getElementById('term').innerHTML = ''; }
+
+/* ===== API 请求 ===== */
+async function api(path, body) {
+  const opts = body ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) } : {};
+  const r = await fetch('/api/' + path, opts);
+  return r.json();
+}
+
+/* ===== 第一步：系统检查 ===== */
+async function doSystemCheck() {
+  const box = document.getElementById('check-box');
+  box.innerHTML = '<div class="flex items-center justify-center py-6 text-slate-500 text-sm gap-2"><svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> 正在检查...</div>';
+  try {
+    const checks = await api('system-check');
+    let h = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">';
+    for (const [k, c] of Object.entries(checks)) {
+      const icon = c.ok ? '✅' : (c.required ? '❌' : '⚠️');
+      const bg = c.ok ? 'rgba(34,197,94,.04)' : 'rgba(244,63,94,.04)';
+      const border = c.ok ? 'rgba(34,197,94,.12)' : c.required ? 'rgba(244,63,94,.12)' : 'rgba(245,158,11,.12)';
+      h += `<div class="flex items-center gap-2.5 p-2.5 rounded-lg" style="background:${bg};border:1px solid ${border}">
+        <span class="text-sm">${icon}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-medium">${c.label}</div>
+          <div class="text-[10px] mono text-slate-400 truncate">${c.version}</div>
+        </div>
+        ${c.fix ? `<a href="${c.fix}" target="_blank" class="text-[10px] text-cyan-400 hover:underline whitespace-nowrap">去安装 ↗</a>` : ''}
+      </div>`;
+    }
+    h += '</div>';
+    box.innerHTML = h;
+    setBadge('b1', 'done');
+    setBadge('b2', 'active');
+    loadProjectInfo();
+  } catch { box.innerHTML = '<p class="text-red-400 text-xs text-center py-6">连接失败，请确认服务器正在运行</p>'; }
+}
+
+/* ===== 第二步：加载项目信息 ===== */
+async function loadProjectInfo() {
+  try {
+    const info = await api('project-info');
+    if (info.currentBackend) document.getElementById('inp-be').value = info.currentBackend;
+    const feDomain = (info.backendFrontendUrl || '').replace(/^https?:\/\//, '').replace(/\/$/,'');
+    if (feDomain) document.getElementById('inp-fe').value = feDomain;
+    const c = document.getElementById('cfg-current');
+    c.innerHTML = `<span class="text-slate-500">当前配置：</span> `
+      + `VITE_API_URL=<span class="text-cyan-400">${info.frontendApiUrl || '未设置'}</span>`
+      + ` &middot; FRONTEND_URL=<span class="text-purple-400">${info.backendFrontendUrl || '未设置'}</span>`
+      + ` &middot; JWT密钥=<span class="${info.jwtSet ? 'text-green-400' : 'text-red-400'}">${info.jwtSet ? '已设置' : '未设置'}</span>`
+      + (info.hasDockerEnv ? ' &middot; <span class="text-indigo-400">Docker .env 已存在</span>' : '');
+  } catch {}
+}
+
+/* ===== 保存域名 ===== */
+async function saveDomain() {
+  const fe = document.getElementById('inp-fe').value.trim();
+  const be = document.getElementById('inp-be').value.trim();
+  const s = document.getElementById('cfg-status');
+  if (!fe || !be) { s.innerHTML = '<span class="text-red-400">请填写两个域名</span>'; return; }
+  s.innerHTML = '<span class="text-slate-400">保存中...</span>';
+  const r = await api('save-domain', { frontendDomain: fe, backendDomain: be });
+  if (r.ok) {
+    s.innerHTML = '<span class="pill pill-ok">✓ 已保存</span>';
+    setBadge('b2', 'done');
+    setBadge('b3', 'active');
+    loadProjectInfo();
+  } else { s.innerHTML = `<span class="pill pill-err">✗ ${r.error}</span>`; }
+}
+
+/* ===== 生成 Docker .env ===== */
+async function genDockerEnv() {
+  const fe = document.getElementById('inp-fe').value.trim();
+  if (!fe) { document.getElementById('cfg-status').innerHTML = '<span class="text-red-400">请先填写前端域名</span>'; return; }
+  const s = document.getElementById('cfg-status');
+  s.innerHTML = '<span class="text-slate-400">正在生成...</span>';
+  const r = await api('generate-docker-env', { domain: fe });
+  if (r.ok) { s.innerHTML = '<span class="pill pill-ok">✓ Docker .env 已生成（密码已自动创建）</span>'; loadProjectInfo(); }
+  else s.innerHTML = '<span class="pill pill-err">生成失败</span>';
+}
+
+/* ===== 更新 Nginx ===== */
+async function updateNginx() {
+  const fe = document.getElementById('inp-fe').value.trim();
+  if (!fe) { document.getElementById('cfg-status').innerHTML = '<span class="text-red-400">请先填写前端域名</span>'; return; }
+  const s = document.getElementById('cfg-status');
+  s.innerHTML = '<span class="text-slate-400">正在更新 Nginx...</span>';
+  const r = await api('update-nginx', { domain: fe });
+  s.innerHTML = r.ok ? '<span class="pill pill-ok">✓ Nginx 配置已更新</span>' : '<span class="pill pill-err">更新失败</span>';
+}
+
+/* ===== 部署模式选择 ===== */
+function pickMode(m) {
+  mode = m;
+  ['cloud','docker','config'].forEach(k => {
+    document.getElementById('oc-' + k).classList.toggle('sel', k === m);
+    document.getElementById('p-' + k).classList.toggle('hidden', k !== m);
+  });
+  document.getElementById('panel-wrap').classList.remove('hidden');
+}
+
+/* ===== 云端部署 ===== */
+async function deployCloud() {
+  const btn = document.getElementById('btn-cloud');
+  btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> 正在推送...';
+  const r = await api('deploy-cloud', { commitMsg: document.getElementById('inp-commit').value });
+  btn.disabled = false;
+  btn.innerHTML = r.ok ? '✅ 部署成功！' : '❌ 失败，请查看终端';
+  if (r.ok) btn.className = 'btn btn-success';
+}
+
+/* ===== Docker 部署 ===== */
+async function deployDocker() {
+  const btn = document.getElementById('btn-docker');
+  btn.disabled = true; btn.innerHTML = '<svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> 正在构建...';
+  const r = await api('deploy-docker', {});
+  btn.disabled = false;
+  btn.innerHTML = r.ok ? '✅ 容器已运行！' : '❌ 构建失败';
+  if (r.ok) { btn.className = 'btn btn-success'; if (r.health) renderHealth(r.health); }
+}
+async function restartDocker() { await api('restart-docker', {}); }
+async function stopDocker() { await api('stop-docker', {}); }
+
+/* ===== 健康检查 ===== */
+async function refreshHealth() {
+  const sec = document.getElementById('health-section');
+  sec.classList.remove('hidden');
+  const box = document.getElementById('health-box');
+  box.innerHTML = '<p class="text-slate-500 text-xs text-center py-4">正在检查...</p>';
+  const r = await api('health');
+  renderHealth(r);
+}
+function renderHealth(services) {
+  const box = document.getElementById('health-box');
+  if (!services || Object.keys(services).length === 0) { box.innerHTML = '<p class="text-slate-500 text-xs text-center py-4">未检测到任何服务</p>'; return; }
+  let h = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">';
+  for (const [k, s] of Object.entries(services)) {
+    h += `<div class="flex items-center gap-3 p-3 rounded-lg" style="background:${s.ok ? 'rgba(34,197,94,.04)' : 'rgba(244,63,94,.04)'}; border:1px solid ${s.ok ? 'rgba(34,197,94,.12)' : 'rgba(244,63,94,.12)'}">
+      <span class="text-sm">${s.ok ? '🟢' : '🔴'}</span>
+      <div><div class="text-xs font-medium">${s.label}</div><div class="text-[10px] mono text-slate-400">${s.url || ''}</div></div>
+    </div>`;
+  }
+  h += '</div>';
+  box.innerHTML = h;
+  const dh = document.getElementById('docker-health');
+  if (dh) dh.innerHTML = h;
+}
+
+/* ===== 数据备份 ===== */
+async function showBackups() {
+  const sec = document.getElementById('backup-section');
+  sec.classList.remove('hidden');
+  const box = document.getElementById('backup-box');
+  box.innerHTML = '<p class="text-slate-500 text-xs text-center py-4">加载中...</p>';
+  const list = await api('backups');
+  if (!list || list.length === 0) { box.innerHTML = '<p class="text-slate-500 text-xs text-center py-4">暂无备份记录</p>'; return; }
+  let h = '<div class="space-y-1.5">';
+  for (const b of list) {
+    const d = new Date(b.date).toLocaleString('zh-CN');
+    h += `<div class="flex items-center gap-3 p-2.5 rounded-lg text-xs" style="background:rgba(0,0,0,.3)">
+      <span>📄</span>
+      <span class="mono flex-1 truncate">${b.name}</span>
+      <span class="text-slate-500">${b.size}</span>
+      <span class="text-slate-600">${d}</span>
+    </div>`;
+  }
+  h += '</div>';
+  box.innerHTML = h;
+}
+async function doBackup() {
+  tAdd('正在备份数据库...', 'cmd');
+  const r = await api('backup-db', {});
+  if (r.ok) tAdd('备份完成：' + r.file + '（' + r.size + '）', 'ok');
+  else tAdd('备份失败：' + (r.msg || '未知错误'), 'err');
+  showBackups();
+}
+
+/* ===== 工具函数 ===== */
+function setBadge(id, state) {
+  const el = document.getElementById(id);
+  el.className = 'badge ' + state;
+  if (state === 'done') el.innerHTML = '✓';
+}
+
+/* ===== 初始化 ===== */
+window.addEventListener('DOMContentLoaded', () => { connectSSE(); doSystemCheck(); });
+</script>
+</body>
+</html>

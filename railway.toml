@@ -1,0 +1,13 @@
+[build]
+# 使用根目录的 Dockerfile 进行多阶段构建（前端+后端）
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# 启动命令
+startCommand = "node server.js"
+# 健康检查路径
+healthcheckPath = "/api/products"
+healthcheckTimeout = 30
+# 重启策略
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

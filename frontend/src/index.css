@@ -1,0 +1,301 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================
+   星际仪表盘主题样式
+   Interstellar Dashboard Theme
+   ============================ */
+
+:root {
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --bg-color: #0f172a;
+}
+
+body {
+  background-color: var(--bg-color, #0f172a);
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* 隐藏滚动条但保留滚动功能 */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================
+   加载动画
+   ============================ */
+.spinner {
+  border: 3px solid #334155;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 慢速旋转（用于装饰） */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* ============================
+   渐入动画
+   ============================ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* 上滑渐入 */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  opacity: 0;
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+/* ============================
+   发光效果
+   ============================ */
+.shadow-glow {
+  box-shadow: 
+    0 0 20px rgba(99, 102, 241, 0.15),
+    0 0 40px rgba(99, 102, 241, 0.1),
+    0 0 60px rgba(99, 102, 241, 0.05);
+}
+
+.shadow-glow-sm {
+  box-shadow: 
+    0 0 10px rgba(99, 102, 241, 0.2),
+    0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.shadow-glow-lg {
+  box-shadow: 
+    0 0 30px rgba(99, 102, 241, 0.2),
+    0 0 60px rgba(99, 102, 241, 0.15),
+    0 0 90px rgba(99, 102, 241, 0.1);
+}
+
+/* ============================
+   客服悬停效果
+   ============================ */
+.service-widget:hover .qr-popup {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.qr-popup {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================
+   分类胶囊按钮动画
+   ============================ */
+.category-pill {
+  position: relative;
+  overflow: hidden;
+}
+
+.category-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+}
+
+.category-pill:hover::before {
+  transform: translateX(100%);
+}
+
+/* ============================
+   Hero Banner 样式
+   ============================ */
+.hero-banner {
+  position: relative;
+}
+
+.hero-banner video {
+  object-fit: cover;
+}
+
+.hero-banner-skeleton {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* ============================
+   搜索框发光效果
+   ============================ */
+.search-filter-zone input:focus {
+  outline: none;
+}
+
+/* ============================
+   商品卡片悬停效果增强
+   ============================ */
+.product-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+}
+
+/* ============================
+   响应式布局优化
+   ============================ */
+@media (max-width: 640px) {
+  .hero-banner .h-64 {
+    height: 200px;
+  }
+  
+  .search-filter-zone .text-lg {
+    font-size: 1rem;
+  }
+}
+
+/* ============================
+   平滑滚动
+   ============================ */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ============================
+   渐变文字
+   ============================ */
+.text-gradient {
+  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================
+   自定义滚动条（非隐藏区域）
+   ============================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ============================
+   选择文本高亮颜色
+   ============================ */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: #fff;
+}
+
+/* ============================
+   焦点可见性（无障碍）
+   ============================ */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* ============================
+   过渡动画默认设置
+   ============================ */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================
+   星空背景粒子效果（可选）
+   ============================ */
+.stars-bg {
+  background-image: 
+    radial-gradient(2px 2px at 20px 30px, #6366f1, transparent),
+    radial-gradient(2px 2px at 40px 70px, #8b5cf6, transparent),
+    radial-gradient(1px 1px at 90px 40px, #a855f7, transparent),
+    radial-gradient(2px 2px at 160px 120px, #6366f1, transparent),
+    radial-gradient(1px 1px at 230px 80px, #818cf8, transparent);
+  background-size: 250px 160px;
+  animation: stars-move 60s linear infinite;
+}
+
+@keyframes stars-move {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 500px 320px;
+  }
+}

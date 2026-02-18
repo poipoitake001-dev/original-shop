@@ -1,0 +1,16 @@
+{
+  "projects": [
+    {
+      "id": "ffed7c358fc354c7",
+      "name": "space-card-shop",
+      "path": "C:\\Users\\qq225\\Desktop\\space-card-shop",
+      "types": [
+        "Monorepo",
+        "Docker",
+        "Dockerfile"
+      ],
+      "addedAt": "2026-02-07T09:34:54.757Z",
+      "lastDeployed": null
+    }
+  ]
+}

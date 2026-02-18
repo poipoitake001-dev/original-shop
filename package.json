@@ -1,0 +1,11 @@
+{
+  "name": "space-card-shop",
+  "version": "1.0.0",
+  "description": "太空主题电商发卡网",
+  "scripts": {
+    "start": "cd backend && npm install && node server.js",
+    "build": "cd frontend && npm install && npm run build",
+    "deploy": "node scripts/deploy-server.js",
+    "baidu-push": "node scripts/baidu-push.js"
+  }
+}

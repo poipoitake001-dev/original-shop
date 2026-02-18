@@ -1,0 +1,506 @@
+// ========================================
+// Prisma Schema - Space Card Shop
+// Hybrid Marketplace (Virtual + Physical)
+// with Trust/Review System
+// ========================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ==================== Enums ====================
+
+enum UserRole {
+  user
+  seller
+  admin
+}
+
+enum SellerStatus {
+  none
+  pending
+  approved
+  rejected
+}
+
+enum DeliveryType {
+  auto
+  manual
+}
+
+/// NEW: Product type for Hybrid Marketplace
+enum ProductType {
+  VIRTUAL
+  PHYSICAL
+}
+
+enum AuditStatus {
+  pending
+  approved
+  rejected
+}
+
+enum OrderStatus {
+  pending
+  paid
+  awaiting_delivery
+  delivered
+  completed
+  cancelled
+}
+
+enum TransactionType {
+  sale
+  commission
+  withdrawal
+  refund
+  adjustment
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+  cancelled
+}
+
+enum WithdrawalStatus {
+  pending
+  processing
+  completed
+  rejected
+}
+
+enum PaymentMethod {
+  alipay
+  wechat
+  bank
+}
+
+enum AnnouncementType {
+  text
+  image
+  video
+}
+
+// ==================== Models ====================
+
+/// 用户表 - 支持多角色 + 信任/评分系统
+model User {
+  id                  Int              @id @default(autoincrement())
+  username            String           @unique @db.VarChar(50)
+  email               String           @unique @db.VarChar(100)
+  password            String           @db.VarChar(255)
+  avatar              String?          @db.VarChar(255)
+  role                UserRole         @default(user)
+  sellerStatus        SellerStatus     @default(none) @map("seller_status")
+  commissionRate      Decimal          @default(0.0500) @map("commission_rate") @db.Decimal(5, 4)
+  securityQuestion    String?          @map("security_question") @db.VarChar(255)
+  securityAnswer      String?          @map("security_answer") @db.VarChar(255)
+  paymentPasswordHash String?          @map("payment_password_hash") @db.VarChar(255)
+
+  // === NEW: Student Verification & Trust ===
+  isStudentVerified   Boolean          @default(false) @map("is_student_verified")
+  canSkipAudit        Boolean          @default(false) @map("can_skip_audit")
+  rating              Float            @default(5.0) @db.Float
+  reviewCount         Int              @default(0) @map("review_count")
+
+  // === Profile & Reputation Stats ===
+  nickname            String?          @db.VarChar(50)
+  avatarUrl           String?          @map("avatar_url") @db.VarChar(500)
+  campus              String?          @db.VarChar(100)
+  dormitory           String?          @db.VarChar(100)
+  className           String?          @map("class_name") @db.VarChar(100)
+  major               String?          @db.VarChar(100)
+  soldCount           Int              @default(0) @map("sold_count")
+  boughtCount         Int              @default(0) @map("bought_count")
+  disputeCount        Int              @default(0) @map("dispute_count")
+  goodReviewCount     Int              @default(0) @map("good_review_count")
+  badgeExcellentSeller Boolean         @default(false) @map("badge_excellent_seller")
+  badgeExcellentBuyer  Boolean         @default(false) @map("badge_excellent_buyer")
+
+  status              Int              @default(1) @db.TinyInt
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  products            Product[]        @relation("SellerProducts")
+  buyerOrders         Order[]          @relation("BuyerOrders")
+  sellerOrders        Order[]          @relation("SellerOrders")
+  wallet              Wallet?
+  transactions        Transaction[]
+  withdrawalRequests  WithdrawalRequest[]
+  sellerApplications  SellerApplication[]
+  sentMessages        Message[]        @relation("SentMessages")
+  receivedMessages    Message[]        @relation("ReceivedMessages")
+  reviewsGiven        Review[]         @relation("ReviewsGiven")
+  reviewsReceived     Review[]         @relation("ReviewsReceived")
+  productWants        ProductWant[]
+
+  @@map("users")
+}
+
+/// 商品分类表
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(50)
+  slug        String    @unique @db.VarChar(30)
+  description String?   @db.VarChar(255)
+  icon        String    @default("📦") @db.VarChar(50)
+  imageUrl    String?   @map("image_url") @db.VarChar(500)
+  sortOrder   Int       @default(0) @map("sort_order")
+  status      Int       @default(1) @db.TinyInt
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+/// 商品表 - 支持虚拟 + 实物混合市场
+model Product {
+  id            Int           @id @default(autoincrement())
+  categoryId    Int           @map("category_id")
+  sellerId      Int?          @map("seller_id")
+  deliveryType  DeliveryType  @default(auto) @map("delivery_type")
+
+  /// NEW: Product type - VIRTUAL requires cardKeys, PHYSICAL requires images + deliveryMethod
+  type          ProductType   @default(VIRTUAL)
+
+  title         String        @db.VarChar(100)
+  description   String?       @db.VarChar(500)
+  detail        String?       @db.Text
+  icon          String        @default("⚡") @db.VarChar(50)
+  imageUrl      String?       @map("image_url") @db.MediumText
+  price         Decimal       @db.Decimal(10, 2)
+  stock         Int           @default(0)
+  specs         Json?
+  sales         Int           @default(0)
+  wantCount     Int           @default(0) @map("want_count")
+  viewCount     Int           @default(0) @map("view_count")
+  auditStatus   AuditStatus   @default(approved) @map("audit_status")
+  auditFeedback String?       @map("audit_feedback") @db.VarChar(500)
+  status        Int           @default(1) @db.TinyInt
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  category      Category      @relation(fields: [categoryId], references: [id])
+  seller        User?         @relation("SellerProducts", fields: [sellerId], references: [id])
+  cardKeys      CardKey[]
+  orders        Order[]
+  wants         ProductWant[]
+
+  @@index([sellerId], map: "idx_seller_id")
+  @@index([auditStatus], map: "idx_audit_status")
+  @@map("products")
+}
+
+/// 订单表 - 支持卖家分账
+model Order {
+  id               Int          @id @default(autoincrement())
+  orderNo          String       @unique @map("order_no") @db.VarChar(32)
+  userId           Int?         @map("user_id")
+  productId        Int          @map("product_id")
+  sellerId         Int?         @map("seller_id")
+  productTitle     String       @map("product_title") @db.VarChar(100)
+  spec             String?      @db.VarChar(50)
+  quantity         Int          @default(1)
+  unitPrice        Decimal      @map("unit_price") @db.Decimal(10, 2)
+  totalPrice       Decimal      @map("total_price") @db.Decimal(10, 2)
+  commissionAmount Decimal      @default(0.00) @map("commission_amount") @db.Decimal(10, 2)
+  sellerAmount     Decimal      @default(0.00) @map("seller_amount") @db.Decimal(10, 2)
+  email            String       @db.VarChar(100)
+  status           OrderStatus  @default(pending)
+  payTime          DateTime?    @map("pay_time")
+  deliverTime      DateTime?    @map("deliver_time")
+  cardKeys         String?      @map("card_keys") @db.Text
+  remark           String?      @db.VarChar(500)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  buyer            User?        @relation("BuyerOrders", fields: [userId], references: [id])
+  product          Product      @relation(fields: [productId], references: [id])
+  seller           User?        @relation("SellerOrders", fields: [sellerId], references: [id])
+  transactions     Transaction[]
+
+  /// NEW: One order can have two reviews (Buyer -> Seller, Seller -> Buyer)
+  reviews          Review[]
+
+  @@index([sellerId], map: "idx_seller_id")
+  @@map("orders")
+}
+
+/// 卡密表
+model CardKey {
+  id        Int       @id @default(autoincrement())
+  productId Int       @map("product_id")
+  cardKey   String    @map("card_key") @db.VarChar(500)
+  status    Int       @default(0) @db.TinyInt
+  orderId   Int?      @map("order_id")
+  soldAt    DateTime? @map("sold_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@map("card_keys")
+}
+
+// ==================== NEW: Review Model ====================
+
+/// 互评系统 - 买家评卖家 & 卖家评买家
+/// One Order can have at most 2 reviews:
+///   - Buyer (reviewerId) -> Seller (targetUserId)
+///   - Seller (reviewerId) -> Buyer (targetUserId)
+model Review {
+  id           Int      @id @default(autoincrement())
+  orderId      Int      @map("order_id")
+  reviewerId   Int      @map("reviewer_id")
+  targetUserId Int      @map("target_user_id")
+  score        Int      // 1-5 分
+  comment      String?  @db.VarChar(1000)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  order      Order @relation(fields: [orderId], references: [id])
+  reviewer   User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  targetUser User  @relation("ReviewsReceived", fields: [targetUserId], references: [id])
+
+  // Constraint: Each user can only leave one review per order
+  @@unique([orderId, reviewerId], map: "uq_order_reviewer")
+  @@index([targetUserId], map: "idx_target_user_id")
+  @@map("reviews")
+}
+
+// ==================== Product Want (想要/收藏) ====================
+
+/// 用户"想要"商品关联表
+model ProductWant {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId], map: "uq_user_product")
+  @@index([productId], map: "idx_product_id")
+  @@map("product_wants")
+}
+
+// ==================== NEW: Student Verification Model ====================
+
+/// 学生认证申请 - 用户上传证件照，管理员审核
+model StudentVerification {
+  id         Int          @id @default(autoincrement())
+  userId     Int          @map("user_id")
+  idPhotoUrl String       @map("id_photo_url") @db.MediumText
+  status     AuditStatus  @default(pending)
+  adminNote  String?      @map("admin_note") @db.VarChar(500)
+  reviewedAt DateTime?    @map("reviewed_at")
+  reviewedBy Int?         @map("reviewed_by")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@index([userId], map: "idx_user_id")
+  @@index([status], map: "idx_status")
+  @@map("student_verifications")
+}
+
+// ==================== Marketplace Tables ====================
+
+/// 卖家钱包
+model Wallet {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique @map("user_id")
+  balance        Decimal  @default(0.00) @db.Decimal(12, 2)
+  frozenBalance  Decimal  @default(0.00) @map("frozen_balance") @db.Decimal(12, 2)
+  totalEarned    Decimal  @default(0.00) @map("total_earned") @db.Decimal(12, 2)
+  totalWithdrawn Decimal  @default(0.00) @map("total_withdrawn") @db.Decimal(12, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_user_id")
+  @@map("wallets")
+}
+
+/// 交易记录
+model Transaction {
+  id           Int               @id @default(autoincrement())
+  userId       Int               @map("user_id")
+  orderId      Int?              @map("order_id")
+  type         TransactionType
+  amount       Decimal           @db.Decimal(12, 2)
+  balanceAfter Decimal           @default(0.00) @map("balance_after") @db.Decimal(12, 2)
+  description  String?           @db.VarChar(500)
+  status       TransactionStatus @default(completed)
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@index([userId], map: "idx_user_id")
+  @@index([orderId], map: "idx_order_id")
+  @@index([type], map: "idx_type")
+  @@map("transactions")
+}
+
+/// 提现申请
+model WithdrawalRequest {
+  id            Int              @id @default(autoincrement())
+  userId        Int              @map("user_id")
+  amount        Decimal          @db.Decimal(12, 2)
+  feeAmount     Decimal          @default(0.00) @map("fee_amount") @db.Decimal(12, 2)
+  actualAmount  Decimal          @default(0.00) @map("actual_amount") @db.Decimal(12, 2)
+  paymentMethod PaymentMethod    @map("payment_method")
+  accountName   String           @map("account_name") @db.VarChar(100)
+  accountNumber String           @map("account_number") @db.VarChar(100)
+  status        WithdrawalStatus @default(pending)
+  adminNote     String?          @map("admin_note") @db.VarChar(500)
+  processedAt   DateTime?        @map("processed_at")
+  processedBy   Int?             @map("processed_by")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_user_id")
+  @@index([status], map: "idx_status")
+  @@map("withdrawal_requests")
+}
+
+/// 卖家入驻申请
+model SellerApplication {
+  id              Int          @id @default(autoincrement())
+  userId          Int          @map("user_id")
+  realName        String       @map("real_name") @db.VarChar(50)
+  idCardNumber    String?      @map("id_card_number") @db.VarChar(30)
+  contactPhone    String?      @map("contact_phone") @db.VarChar(20)
+  contactWechat   String?      @map("contact_wechat") @db.VarChar(50)
+  shopName        String?      @map("shop_name") @db.VarChar(100)
+  shopDescription String?      @map("shop_description") @db.VarChar(500)
+  reason          String?      @db.VarChar(500)
+  status          AuditStatus  @default(pending)
+  adminNote       String?      @map("admin_note") @db.VarChar(500)
+  reviewedAt      DateTime?    @map("reviewed_at")
+  reviewedBy      Int?         @map("reviewed_by")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "idx_user_id")
+  @@index([status], map: "idx_status")
+  @@map("seller_applications")
+}
+
+// ==================== Content / Config Tables ====================
+
+/// 系统设置（单例）
+model SiteSetting {
+  id                  Int      @id @default(1)
+  siteName            String   @default("星际卡密商城") @map("site_name") @db.VarChar(100)
+  siteNameEn          String   @default("Interstellar Card Shop") @map("site_name_en") @db.VarChar(100)
+  pageTitle           String?  @map("page_title") @db.VarChar(200)
+  faviconUrl          String?  @map("favicon_url") @db.MediumText
+  siteLogoUrl         String?  @map("site_logo_url") @db.MediumText
+  siteDescription     String?  @map("site_description") @db.VarChar(500)
+  themeColor          String   @default("#6366f1") @map("theme_color") @db.VarChar(20)
+  bgColor             String   @default("#0f172a") @map("bg_color") @db.VarChar(20)
+  defaultProductImage String?  @map("default_product_image") @db.MediumText
+  contactQrUrl        String?  @map("contact_qr_url") @db.MediumText
+  contactWechat       String?  @map("contact_wechat") @db.VarChar(100)
+  contactEmail        String?  @map("contact_email") @db.VarChar(100)
+  contactPhone        String?  @map("contact_phone") @db.VarChar(50)
+  supportHours        String   @default("7 x 24 小时") @map("support_hours") @db.VarChar(100)
+  footerText          String?  @map("footer_text") @db.VarChar(500)
+  footerDescription   String?  @map("footer_description") @db.VarChar(500)
+  socialLinks         Json?    @map("social_links")
+  withdrawalFeePercent Decimal @default(5.00) @map("withdrawal_fee_percent") @db.Decimal(5, 2)
+  withdrawalMinFee    Decimal  @default(2.00) @map("withdrawal_min_fee") @db.Decimal(10, 2)
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
+
+/// 公告
+model Announcement {
+  id        Int              @id @default(autoincrement())
+  type      AnnouncementType @default(text)
+  content   String           @db.VarChar(500)
+  mediaUrl  String?          @map("media_url") @db.MediumText
+  link      String?          @db.VarChar(255)
+  bgColor   String           @default("#6366f1") @map("bg_color") @db.VarChar(20)
+  status    Int              @default(1) @db.TinyInt
+  sortOrder Int              @default(0) @map("sort_order")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@map("announcements")
+}
+
+/// 信息页面（条款/隐私/帮助）
+model InfoPage {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique @db.VarChar(50)
+  title       String   @db.VarChar(200)
+  content     String?  @db.MediumText
+  isPublished Int      @default(1) @map("is_published") @db.TinyInt
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("info_pages")
+}
+
+/// 信任徽章
+model TrustBadge {
+  id          Int      @id @default(autoincrement())
+  iconUrl     String?  @map("icon_url") @db.MediumText
+  title       String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isVisible   Int      @default(1) @map("is_visible") @db.TinyInt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("trust_badges")
+}
+
+/// 站内消息
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   Int      @map("sender_id")
+  receiverId Int      @map("receiver_id")
+  content    String   @db.Text
+  isRead     Int      @default(0) @map("is_read") @db.TinyInt
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@index([senderId], map: "idx_sender")
+  @@index([receiverId], map: "idx_receiver")
+  @@index([senderId, receiverId, createdAt], map: "idx_conversation")
+  @@map("messages")
+}
+
+/// 支付配置（单例）
+model PaymentConfig {
+  id              Int      @id @default(1)
+  system1Enabled  Int      @default(0) @map("system1_enabled") @db.TinyInt
+  system1Config   String?  @map("system1_config") @db.LongText
+  system2Enabled  Int      @default(0) @map("system2_enabled") @db.TinyInt
+  system2Config   String?  @map("system2_config") @db.LongText
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_config")
+}
