@@ -2,50 +2,28 @@
  * ========================================
  * 数据库配置模块
  * Database Configuration
- * 支持本地开发和云数据库部署
+ * 支持 PostgreSQL (Neon) 云数据库
  * ========================================
  */
 
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-// 数据库连接池配置
-// 支持 DATABASE_URL（云数据库）或单独配置（本地开发）
-let poolConfig;
-
-if (process.env.DATABASE_URL) {
-    // 云数据库连接（Railway 等）
-    // Railway 内部连接不需要 SSL 验证
-    poolConfig = {
-        uri: process.env.DATABASE_URL,
-        waitForConnections: true,
-        connectionLimit: 5,
-        queueLimit: 0,
-        charset: 'utf8mb4'
-    };
-} else {
-    // 本地开发环境
-    poolConfig = {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT) || 3306,
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'space_card_shop',
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        charset: 'utf8mb4'
-    };
-}
-
-const pool = mysql.createPool(poolConfig);
+// PostgreSQL 连接池配置
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('neon') ? { rejectUnauthorized: false } : false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+});
 
 // 测试数据库连接
 async function testConnection() {
     try {
-        const connection = await pool.getConnection();
-        console.log('✓ 数据库连接成功');
-        connection.release();
+        const client = await pool.connect();
+        console.log('✓ 数据库连接成功 (PostgreSQL)');
+        client.release();
         return true;
     } catch (error) {
         console.error('✗ 数据库连接失败:', error.message);
@@ -53,16 +31,47 @@ async function testConnection() {
     }
 }
 
-// 执行SQL查询 - 使用 query 而不是 execute 避免参数类型问题
+/**
+ * 将 MySQL 风格的 SQL 转换为 PostgreSQL 风格
+ * - ? 占位符 → $1, $2, $3...
+ * - MySQL 函数 → PostgreSQL 函数
+ */
+function convertSQL(sql, params) {
+    let paramIndex = 0;
+    let convertedSQL = sql
+        // 替换 ? 为 $1, $2, $3...
+        .replace(/\?/g, () => `$${++paramIndex}`)
+        // MySQL → PostgreSQL 函数转换
+        .replace(/NOW\(\)/gi, 'NOW()')
+        .replace(/CURDATE\(\)/gi, 'CURRENT_DATE')
+        .replace(/DATE_SUB\(([^,]+),\s*INTERVAL\s+(\d+)\s+(\w+)\)/gi, "($1 - INTERVAL '$2 $3')")
+        .replace(/DATE_ADD\(([^,]+),\s*INTERVAL\s+(\d+)\s+(\w+)\)/gi, "($1 + INTERVAL '$2 $3')")
+        .replace(/IFNULL\(/gi, 'COALESCE(')
+        .replace(/LIMIT\s+(\d+)\s*,\s*(\d+)/gi, 'LIMIT $2 OFFSET $1')
+        // AUTO_INCREMENT → SERIAL (仅用于建表)
+        .replace(/INT\s+AUTO_INCREMENT/gi, 'SERIAL')
+        .replace(/BIGINT\s+AUTO_INCREMENT/gi, 'BIGSERIAL')
+        // MySQL 特有语法
+        .replace(/`/g, '"')
+        .replace(/TINYINT\(1\)/gi, 'BOOLEAN')
+        .replace(/TINYINT/gi, 'SMALLINT')
+        .replace(/DATETIME/gi, 'TIMESTAMP')
+        .replace(/ON DUPLICATE KEY UPDATE/gi, 'ON CONFLICT DO UPDATE SET');
+    
+    return convertedSQL;
+}
+
+// 执行SQL查询
 async function query(sql, params) {
     try {
-        // 确保 params 是数组，如果为空则传入空数组
         const safeParams = Array.isArray(params) ? params : [];
-        const [rows] = await pool.query(sql, safeParams);
-        return rows;
+        const convertedSQL = convertSQL(sql, safeParams);
+        const result = await pool.query(convertedSQL, safeParams);
+        return result.rows;
     } catch (error) {
         console.error('SQL 执行错误:', error.message);
-        console.error('SQL:', sql);
+        console.error('Original SQL:', sql);
+        console.error('Converted SQL:', convertSQL(sql, params));
         console.error('Params:', params);
         throw error;
     }
@@ -72,8 +81,13 @@ async function query(sql, params) {
 async function insert(sql, params) {
     try {
         const safeParams = Array.isArray(params) ? params : [];
-        const [result] = await pool.query(sql, safeParams);
-        return result.insertId;
+        // PostgreSQL 需要 RETURNING id 来获取插入的 ID
+        let convertedSQL = convertSQL(sql, safeParams);
+        if (!convertedSQL.toLowerCase().includes('returning')) {
+            convertedSQL += ' RETURNING id';
+        }
+        const result = await pool.query(convertedSQL, safeParams);
+        return result.rows[0]?.id;
     } catch (error) {
         console.error('SQL INSERT 错误:', error.message);
         console.error('SQL:', sql);
@@ -85,8 +99,9 @@ async function insert(sql, params) {
 async function update(sql, params) {
     try {
         const safeParams = Array.isArray(params) ? params : [];
-        const [result] = await pool.query(sql, safeParams);
-        return result.affectedRows;
+        const convertedSQL = convertSQL(sql, safeParams);
+        const result = await pool.query(convertedSQL, safeParams);
+        return result.rowCount;
     } catch (error) {
         console.error('SQL UPDATE 错误:', error.message);
         console.error('SQL:', sql);
@@ -96,21 +111,26 @@ async function update(sql, params) {
 
 /**
  * 获取数据库连接（用于事务操作）
- * 使用方式:
- *   const conn = await db.getConnection();
+ * PostgreSQL 事务使用方式:
+ *   const client = await db.getConnection();
  *   try {
- *     await conn.beginTransaction();
- *     await conn.query(...);
- *     await conn.commit();
+ *     await client.query('BEGIN');
+ *     await client.query(...);
+ *     await client.query('COMMIT');
  *   } catch (e) {
- *     await conn.rollback();
+ *     await client.query('ROLLBACK');
  *     throw e;
  *   } finally {
- *     conn.release();
+ *     client.release();
  *   }
  */
 async function getConnection() {
-    return await pool.getConnection();
+    const client = await pool.connect();
+    // 添加兼容 MySQL 的方法
+    client.beginTransaction = () => client.query('BEGIN');
+    client.commit = () => client.query('COMMIT');
+    client.rollback = () => client.query('ROLLBACK');
+    return client;
 }
 
 module.exports = {
