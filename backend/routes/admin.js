@@ -388,12 +388,10 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
         ];
         const updateFields = [];
         const params = [];
-        let paramIndex = 1;
 
         fields.forEach(f => {
             if (req.body[f] !== undefined) {
-                updateFields.push(`${f} = $${paramIndex++}`);
-                // 特殊类型处理
+                updateFields.push(`${f} = ?`);
                 if (f === 'withdrawal_fee_percent' || f === 'withdrawal_min_fee') {
                     params.push(parseFloat(req.body[f]) || 0);
                 } else if (f === 'gateway_enabled' || f === 'manual_qr_enabled') {
@@ -408,12 +406,19 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
             return res.status(400).json({ code: 400, message: '没有要更新的字段' });
         }
 
+        // 确保设置记录存在
+        const existing = await db.query('SELECT id FROM site_settings WHERE id = 1');
+        if (existing.length === 0) {
+            await db.query('INSERT INTO site_settings (id, site_name) VALUES (1, ?)', ['星际卡密商城']);
+        }
+
         params.push(1);
-        await db.query(`UPDATE site_settings SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex}`, params);
+        await db.query(`UPDATE site_settings SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`, params);
         res.json({ code: 200, message: '设置已更新' });
     } catch (error) {
-        console.error('Update settings error:', error);
-        res.status(500).json({ code: 500, message: '更新失败' });
+        console.error('Update settings error:', error.message);
+        console.error('Error detail:', error);
+        res.status(500).json({ code: 500, message: '更新失败: ' + error.message });
     }
 });
 

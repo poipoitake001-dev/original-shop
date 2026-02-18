@@ -176,6 +176,26 @@ async function initDatabase() {
         `);
         console.log('✓ site_settings 表已就绪');
 
+        // 自动补充支付相关字段（兼容已存在的旧表）
+        const paymentColumns = [
+            { name: 'gateway_enabled', type: 'SMALLINT DEFAULT 0' },
+            { name: 'gateway_url', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'gateway_merchant_id', type: 'VARCHAR(100) DEFAULT NULL' },
+            { name: 'gateway_merchant_key', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'gateway_notify_url', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'manual_qr_enabled', type: 'SMALLINT DEFAULT 0' },
+            { name: 'manual_qr_image', type: 'TEXT DEFAULT NULL' },
+            { name: 'manual_qr_description', type: 'VARCHAR(500) DEFAULT NULL' },
+        ];
+        for (const col of paymentColumns) {
+            try {
+                await db.pool.query(`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+            } catch (e) {
+                // 列已存在则忽略
+            }
+        }
+        console.log('✓ site_settings 支付字段已就绪');
+
         // 公告表
         await db.query(`
             CREATE TABLE IF NOT EXISTS announcements (
