@@ -3,7 +3,7 @@ import {
   Shield, Lock, Key, HelpCircle, CheckCircle, XCircle,
   Eye, EyeOff, ChevronRight, X, Loader2
 } from 'lucide-react'
-import { authFetch } from '../../utils/api'
+import { authFetch, API_BASE } from '../../utils/api'
 
 const SECURITY_QUESTIONS = [
   '你的宠物叫什么名字？',
@@ -334,7 +334,7 @@ const SetPaymentPasswordModal = ({ onClose, showToast, onSuccess }) => {
     setError('')
     setSaving(true)
     const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}')
-    const res = await fetch('/api/customer/login', {
+    const res = await fetch(`${API_BASE}/customer/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account: userInfo.username || userInfo.email, password: loginPassword }),

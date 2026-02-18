@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Plus, Edit2, Trash2, Key, ChevronDown, ChevronUp, Upload, X, AlertCircle, Package, ImagePlus, ShieldCheck, Clock, Zap } from 'lucide-react'
-import { authFetch } from '../../utils/api'
+import { authFetch, API_BASE } from '../../utils/api'
 
 const auditBadge = {
   pending: { text: '待审核', cls: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' },
@@ -27,7 +27,7 @@ const SellerProducts = () => {
   useEffect(() => {
     loadProducts()
     // Load categories
-    fetch('/api/categories').then(r => r.json()).then(res => {
+    fetch(`${API_BASE}/categories`).then(r => r.json()).then(res => {
       if (res.code === 200) setCategories(res.data?.list || res.data || [])
     })
   }, [loadProducts])

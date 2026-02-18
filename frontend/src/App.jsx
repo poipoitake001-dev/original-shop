@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, Link } from 'react-router-dom'
 import { ShoppingBag, Rocket, Menu, X, User, LogOut, Package, Search, Zap, Shield, Award, CreditCard, Store, Bell } from 'lucide-react'
-import { api } from './utils/api'
+import { api, API_BASE } from './utils/api'
 import { STOCK_LIMIT } from './utils/storage'
 import Toast from './components/Toast'
 import ProductCard from './components/ProductCard'
@@ -145,7 +145,7 @@ const StorefrontPage = () => {
   useEffect(() => {
     loadProducts()
     // 加载站点配置
-    fetch('/api/settings/public').then(r => r.json()).then(res => {
+    fetch(`${API_BASE}/settings/public`).then(r => r.json()).then(res => {
       if (res.code === 200 && res.data) {
         setSiteConfig(res.data)
         // 动态设置主题色 CSS 变量
@@ -184,7 +184,7 @@ const StorefrontPage = () => {
     const pollUnread = () => {
       const tk = localStorage.getItem('user_token')
       if (!tk) return
-      fetch('/api/messages/unread-count', { headers: { Authorization: 'Bearer ' + tk } })
+      fetch(`${API_BASE}/messages/unread-count`, { headers: { Authorization: 'Bearer ' + tk } })
         .then(r => r.json())
         .then(res => { if (res.code === 200) setUnreadMsgCount(res.data?.count || 0) })
         .catch(() => {})

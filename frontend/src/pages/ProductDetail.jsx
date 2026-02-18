@@ -6,6 +6,7 @@ import {
   CreditCard, Heart, Eye, Zap, Clock, MessageSquare, Bookmark
 } from 'lucide-react'
 import { STOCK_LIMIT } from '../utils/storage'
+import { API_BASE } from '../utils/api'
 import PurchaseModal from '../components/PurchaseModal'
 import ShareOptionsModal from '../components/ShareOptionsModal'
 import PosterModal from '../components/PosterModal'
@@ -35,7 +36,7 @@ const ProductDetail = () => {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/products/${id}`)
+        const res = await fetch(`${API_BASE}/products/${id}`)
         const data = await res.json()
         if (data.code === 200 && data.data) {
           setProduct(data.data)
@@ -52,7 +53,7 @@ const ProductDetail = () => {
 
     const token = localStorage.getItem('user_token')
     if (token) {
-      fetch(`/api/products/${id}/want-status`, {
+      fetch(`${API_BASE}/products/${id}/want-status`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => r.json()).then(res => {
         if (res.code === 200) setWanted(res.data?.wanted || false)
@@ -93,7 +94,7 @@ const ProductDetail = () => {
     const token = localStorage.getItem('user_token')
     if (!token) { showToast('请先登录', 'info'); return }
     try {
-      const res = await fetch(`/api/products/${id}/want`, {
+      const res = await fetch(`${API_BASE}/products/${id}/want`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       }).then(r => r.json())

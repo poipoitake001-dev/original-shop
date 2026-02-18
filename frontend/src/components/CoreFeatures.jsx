@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Zap, Shield, Award } from 'lucide-react'
+import { API_BASE } from '../utils/api'
 
 // 默认图标（当徽章没有自定义图标时使用）
 const defaultIcons = [
@@ -12,7 +13,7 @@ const CoreFeatures = () => {
   const [badges, setBadges] = useState([])
 
   useEffect(() => {
-    fetch('/api/settings/trust-badges')
+    fetch(`${API_BASE}/settings/trust-badges`)
       .then(r => r.json())
       .then(res => {
         if (res.code === 200 && res.data?.length > 0) {

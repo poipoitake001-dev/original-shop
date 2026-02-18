@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, FileText, AlertCircle } from 'lucide-react'
+import { API_BASE } from '../utils/api'
 
 const InfoPage = () => {
   const { slug } = useParams()
@@ -11,7 +12,7 @@ const InfoPage = () => {
   useEffect(() => {
     setLoading(true)
     setNotFound(false)
-    fetch(`/api/settings/pages/${slug}`)
+    fetch(`${API_BASE}/settings/pages/${slug}`)
       .then(r => r.json())
       .then(res => {
         if (res.code === 200 && res.data) {
