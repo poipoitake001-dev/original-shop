@@ -431,11 +431,6 @@ router.post('/cardkeys/:productId/import', verifyToken, verifySeller, async (req
         if (keyList.length > MAX_IMPORT) {
             return res.status(400).json({ code: 400, message: `单次最多导入 ${MAX_IMPORT} 个卡密，当前 ${keyList.length} 个` });
         }
-        }
-
-        if (keyList.length === 0) {
-            return res.status(400).json({ code: 400, message: '未检测到有效的卡密' });
-        }
 
         // 检查重复数量（仅提示，不阻止）
         const existingKeys = await db.query('SELECT card_key FROM card_keys WHERE product_id = ?', [Number(productId)]);

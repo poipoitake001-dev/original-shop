@@ -87,20 +87,20 @@ router.post('/create', async (req, res) => {
             });
         }
 
-        // 获取订单信息用于生成支付参数
-        const orders = await db.query(
+        // 获取订单信息用于生成支付参数（复用前面的验证查询）
+        const orderDetail = await db.query(
             'SELECT * FROM orders WHERE id = ? AND order_no = ?',
             [orderId, orderNo]
         );
 
-        if (!orders || orders.length === 0) {
+        if (!orderDetail || orderDetail.length === 0) {
             return res.status(404).json({
                 code: 404,
                 message: '订单不存在'
             });
         }
 
-        const order = orders[0];
+        const order = orderDetail[0];
 
         // ========== 构建正确的回调URL ==========
         // 关键修复：前后端分离部署时，return_url 必须指向前端域名，
