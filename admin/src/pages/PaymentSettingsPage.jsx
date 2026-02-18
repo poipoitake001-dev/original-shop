@@ -24,34 +24,69 @@ const PaymentSettingsPage = () => {
 
   const loadSettings = async () => {
     setLoading(true)
+    console.log('=== 加载支付设置 ===')
+    
     const res = await adminRequest('/admin/settings')
+    console.log('加载的数据:', res)
+    
     if (res.code === 200) {
       const data = res.data || {}
-      setSettings({
-        gateway_enabled: data.gateway_enabled || false,
+      
+      // 确保布尔值正确转换
+      const loadedSettings = {
+        gateway_enabled: Boolean(data.gateway_enabled),
         gateway_url: data.gateway_url || '',
         gateway_merchant_id: data.gateway_merchant_id || '',
         gateway_merchant_key: data.gateway_merchant_key || '',
         gateway_notify_url: data.gateway_notify_url || `${window.location.origin}/api/payment/notify`,
-        manual_qr_enabled: data.manual_qr_enabled || false,
+        manual_qr_enabled: Boolean(data.manual_qr_enabled),
         manual_qr_image: data.manual_qr_image || '',
         manual_qr_description: data.manual_qr_description || '请扫描二维码完成支付，支付后请联系客服确认订单'
-      })
+      }
+      
+      console.log('处理后的设置:', loadedSettings)
+      setSettings(loadedSettings)
+    } else {
+      console.error('加载失败:', res)
     }
     setLoading(false)
   }
 
   const handleSave = async () => {
     setSaving(true)
-    const res = await adminRequest('/admin/settings', { 
-      method: 'PUT', 
-      body: JSON.stringify(settings) 
+    
+    // 打印发送的数据用于调试
+    console.log('=== 保存支付设置 ===')
+    console.log('发送的数据:', settings)
+    console.log('数据类型检查:', {
+      gateway_enabled: typeof settings.gateway_enabled,
+      manual_qr_enabled: typeof settings.manual_qr_enabled,
+      gateway_url: typeof settings.gateway_url,
+      manual_qr_image: settings.manual_qr_image ? '已设置' : '未设置'
     })
-    setSaving(false)
-    if (res.code === 200) {
-      alert('保存成功')
-    } else {
-      alert(res.message || '保存失败')
+    
+    try {
+      const res = await adminRequest('/admin/settings', { 
+        method: 'PUT', 
+        body: JSON.stringify(settings) 
+      })
+      
+      console.log('服务器响应:', res)
+      
+      setSaving(false)
+      
+      if (res.code === 200) {
+        alert('保存成功')
+      } else {
+        // 显示详细的错误信息
+        const errorMsg = res.message || '保存失败'
+        console.error('保存失败:', errorMsg, res)
+        alert(`保存失败: ${errorMsg}`)
+      }
+    } catch (error) {
+      console.error('请求异常:', error)
+      setSaving(false)
+      alert(`请求失败: ${error.message || '网络错误'}`)
     }
   }
 

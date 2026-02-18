@@ -12,17 +12,48 @@ const ShopDesignPage = () => {
 
   const loadSettings = async () => {
     setLoading(true)
+    console.log('=== 加载店铺装修设置 ===')
+    
     const res = await adminRequest('/admin/settings')
-    if (res.code === 200) setSettings(res.data || {})
+    console.log('加载的数据:', res)
+    
+    if (res.code === 200) {
+      setSettings(res.data || {})
+    } else {
+      console.error('加载失败:', res)
+    }
     setLoading(false)
   }
 
   const handleSave = async () => {
     setSaving(true)
-    const res = await adminRequest('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) })
-    setSaving(false)
-    if (res.code === 200) alert('保存成功')
-    else alert(res.message || '保存失败')
+    
+    console.log('=== 保存店铺装修设置 ===')
+    console.log('发送的数据:', settings)
+    console.log('数据字段数量:', Object.keys(settings).length)
+    
+    try {
+      const res = await adminRequest('/admin/settings', { 
+        method: 'PUT', 
+        body: JSON.stringify(settings) 
+      })
+      
+      console.log('服务器响应:', res)
+      
+      setSaving(false)
+      
+      if (res.code === 200) {
+        alert('保存成功')
+      } else {
+        const errorMsg = res.message || '保存失败'
+        console.error('保存失败:', errorMsg, res)
+        alert(`保存失败: ${errorMsg}`)
+      }
+    } catch (error) {
+      console.error('请求异常:', error)
+      setSaving(false)
+      alert(`请求失败: ${error.message || '网络错误'}`)
+    }
   }
 
   const handleImageUpload = async (e, field) => {
