@@ -7,7 +7,7 @@ import {
   Trash2, Plus, RefreshCw, ChevronDown, ChevronUp, Save, 
   Layers, CreditCard, Shield, Key, Upload, Eye, EyeOff, Edit
 } from 'lucide-react'
-import { adminRequest, getToken, setToken, clearToken } from './utils/api'
+import { adminRequest, getToken, setToken, clearToken } from '../utils/api'
 
 // ==================== 登录页面 ====================
 const LoginPage = ({ onLogin }) => {
