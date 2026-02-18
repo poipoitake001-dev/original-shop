@@ -162,6 +162,14 @@ async function initDatabase() {
                 social_links JSONB DEFAULT NULL,
                 withdrawal_fee_percent DECIMAL(5, 2) DEFAULT 5.00,
                 withdrawal_min_fee DECIMAL(10, 2) DEFAULT 2.00,
+                gateway_enabled SMALLINT DEFAULT 0,
+                gateway_url VARCHAR(255) DEFAULT NULL,
+                gateway_merchant_id VARCHAR(100) DEFAULT NULL,
+                gateway_merchant_key VARCHAR(255) DEFAULT NULL,
+                gateway_notify_url VARCHAR(255) DEFAULT NULL,
+                manual_qr_enabled SMALLINT DEFAULT 0,
+                manual_qr_image TEXT DEFAULT NULL,
+                manual_qr_description VARCHAR(500) DEFAULT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT single_row CHECK (id = 1)
             )
