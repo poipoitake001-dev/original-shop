@@ -10,28 +10,30 @@ const router = express.Router();
 const db = require('../config/db');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
-// 确保 card_keys 表存在
+// 确保 card_keys 表存在 (PostgreSQL)
 (async () => {
     try {
         await db.query(`
             CREATE TABLE IF NOT EXISTS card_keys (
-                id INT PRIMARY KEY AUTO_INCREMENT,
+                id SERIAL PRIMARY KEY,
                 product_id INT NOT NULL,
                 card_key VARCHAR(500) NOT NULL,
-                status TINYINT DEFAULT 0,
+                status SMALLINT DEFAULT 0,
                 order_id INT DEFAULT NULL,
-                sold_at DATETIME DEFAULT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_product_status (product_id, status)
+                sold_at TIMESTAMP DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        
+        // 创建索引
+        await db.query(`
+            CREATE INDEX IF NOT EXISTS idx_cardkeys_product_status ON card_keys(product_id, status)
+        `).catch(() => {});
         
         // 确保 orders 表有 card_keys 字段
         await db.query(`
             ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_keys TEXT
-        `).catch(() => {
-            // 如果是 MySQL 5.x 不支持 IF NOT EXISTS，忽略错误
-        });
+        `).catch(() => {});
         
         console.log('Card keys table initialized');
     } catch (error) {
