@@ -89,69 +89,46 @@ router.get('/', verifyToken, verifyAdmin, async (req, res) => {
  */
 router.put('/', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        const { 
-            site_name, 
-            site_description, 
-            contact_qr_url, 
-            contact_wechat, 
-            contact_email, 
-            contact_phone,
-            footer_text,
-            withdrawal_fee_percent,
-            withdrawal_min_fee
-        } = req.body;
-        
         const updateFields = [];
         const params = [];
         
-        if (site_name !== undefined) {
-            updateFields.push('site_name = ?');
-            params.push(site_name);
-        }
-        if (site_description !== undefined) {
-            updateFields.push('site_description = ?');
-            params.push(site_description || null);
-        }
-        if (contact_qr_url !== undefined) {
-            updateFields.push('contact_qr_url = ?');
-            params.push(contact_qr_url || null);
-        }
-        if (contact_wechat !== undefined) {
-            updateFields.push('contact_wechat = ?');
-            params.push(contact_wechat || null);
-        }
-        if (contact_email !== undefined) {
-            updateFields.push('contact_email = ?');
-            params.push(contact_email || null);
-        }
-        if (contact_phone !== undefined) {
-            updateFields.push('contact_phone = ?');
-            params.push(contact_phone || null);
-        }
-        if (footer_text !== undefined) {
-            updateFields.push('footer_text = ?');
-            params.push(footer_text || null);
-        }
-        if (withdrawal_fee_percent !== undefined) {
-            updateFields.push('withdrawal_fee_percent = ?');
-            params.push(parseFloat(withdrawal_fee_percent));
-        }
-        if (withdrawal_min_fee !== undefined) {
-            updateFields.push('withdrawal_min_fee = ?');
-            params.push(parseFloat(withdrawal_min_fee));
-        }
-        // 品牌字段
-        const brandFields = ['site_name_en', 'page_title', 'favicon_url', 'site_logo_url', 'theme_color', 'bg_color', 'default_product_image', 'support_hours'];
-        brandFields.forEach(f => {
-            if (req.body[f] !== undefined) {
-                updateFields.push(f + ' = ?');
-                params.push(req.body[f] || null);
+        // 所有可更新的字段列表
+        const allowedFields = [
+            // 基本信息
+            'site_name', 'site_name_en', 'page_title', 'site_description', 'footer_text', 'footer_description',
+            // 外观设置
+            'site_logo_url', 'favicon_url', 'theme_color', 'bg_color', 'default_product_image',
+            // 核心优势徽章
+            'feature_1_title', 'feature_1_desc', 'feature_1_icon',
+            'feature_2_title', 'feature_2_desc', 'feature_2_icon',
+            'feature_3_title', 'feature_3_desc', 'feature_3_icon',
+            // 联系方式
+            'contact_email', 'contact_phone', 'contact_wechat', 'contact_qq', 'contact_qr_url', 'support_hours',
+            // 社交账号
+            'social_weibo', 'social_douyin', 'social_xiaohongshu', 'social_bilibili',
+            // 支付设置
+            'gateway_enabled', 'gateway_url', 'gateway_merchant_id', 'gateway_merchant_key', 'gateway_notify_url',
+            'manual_qr_enabled', 'manual_qr_image', 'manual_qr_description',
+            // 财务设置
+            'withdrawal_fee_percent', 'withdrawal_min_fee'
+        ];
+        
+        // 遍历所有允许的字段
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updateFields.push(`${field} = ?`);
+                // 特殊处理数值类型
+                if (field === 'withdrawal_fee_percent' || field === 'withdrawal_min_fee') {
+                    params.push(parseFloat(req.body[field]) || 0);
+                } else if (field === 'gateway_enabled' || field === 'manual_qr_enabled') {
+                    params.push(req.body[field] ? 1 : 0);
+                } else {
+                    params.push(req.body[field] || null);
+                }
             }
         });
-        if (req.body.footer_description !== undefined) {
-            updateFields.push('footer_description = ?');
-            params.push(req.body.footer_description || null);
-        }
+        
+        // 处理 social_links JSON 字段
         if (req.body.social_links !== undefined) {
             updateFields.push('social_links = ?');
             params.push(typeof req.body.social_links === 'string' ? req.body.social_links : JSON.stringify(req.body.social_links));
