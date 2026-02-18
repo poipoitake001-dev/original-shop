@@ -410,12 +410,12 @@ async function initDatabase() {
         await db.query(`
             INSERT INTO categories (id, name, slug, description, icon, sort_order, created_at, updated_at)
             VALUES (1, '软件激活码', 'software', '各类正版软件激活码', '⚡', 1, NOW(), NOW())
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (slug) DO NOTHING
         `);
         await db.query(`
             INSERT INTO categories (id, name, slug, description, icon, sort_order, created_at, updated_at)
             VALUES (2, '游戏点卡', 'game', '游戏充值卡和会员', '🎮', 2, NOW(), NOW())
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (slug) DO NOTHING
         `);
         console.log('✓ 默认分类已插入');
 
