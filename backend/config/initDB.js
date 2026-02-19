@@ -204,10 +204,15 @@ async function initDatabase() {
             { name: 'feature_3_title', type: 'VARCHAR(100) DEFAULT NULL' },
             { name: 'feature_3_desc', type: 'VARCHAR(200) DEFAULT NULL' },
             { name: 'feature_3_icon', type: 'TEXT DEFAULT NULL' },
+            { name: 'contact_qq', type: 'VARCHAR(50) DEFAULT NULL' },
+            { name: 'social_weibo', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'social_douyin', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'social_xiaohongshu', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'social_bilibili', type: 'VARCHAR(255) DEFAULT NULL' }
         ];
         for (const col of paymentColumns) {
             try {
-                await db.pool.query(`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+                await db.query(`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
             } catch (e) {
                 // 列已存在则忽略
             }
