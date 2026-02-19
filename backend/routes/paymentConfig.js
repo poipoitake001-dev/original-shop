@@ -202,6 +202,93 @@ router.get('/full', verifyToken, verifyAdmin, verifyPaymentToken, async (req, re
 });
 
 /**
+ * PUT /simple
+ * 简化版更新支付配置（仅需管理员认证，无需支付密码）
+ * 供 React 管理后台使用
+ */
+router.put('/simple', verifyToken, verifyAdmin, async (req, res) => {
+    console.log('========== [PUT /payment-config/simple] 开始 ==========');
+    
+    try {
+        const { 
+            system1_enabled, 
+            system1_config, 
+            system2_enabled, 
+            system2_config 
+        } = req.body;
+
+        console.log('[PUT/simple] 接收到的数据:', {
+            system1_enabled,
+            system2_enabled,
+            system1_config: system1_config ? '存在' : '不存在',
+            system2_config: system2_config ? '存在' : '不存在'
+        });
+
+        // 获取当前配置
+        const currentConfigs = await db.query('SELECT * FROM payment_config WHERE id = 1');
+        let currentSystem1Config = {};
+        let currentSystem2Config = {};
+
+        if (currentConfigs && currentConfigs.length > 0) {
+            try { currentSystem1Config = JSON.parse(currentConfigs[0].system1_config || '{}'); } catch(e) {}
+            try { currentSystem2Config = JSON.parse(currentConfigs[0].system2_config || '{}'); } catch(e) {}
+        }
+
+        const newSystem1Config = system1_config ? { ...currentSystem1Config, ...system1_config } : currentSystem1Config;
+        const newSystem2Config = system2_config ? { ...currentSystem2Config, ...system2_config } : currentSystem2Config;
+
+        if (system1_config && (system1_config.key === '' || system1_config.key === undefined)) {
+            newSystem1Config.key = currentSystem1Config.key || '';
+        }
+
+        const system1ConfigStr = JSON.stringify(newSystem1Config);
+        const system2ConfigStr = JSON.stringify(newSystem2Config);
+        
+        const finalSystem1Enabled = system1_enabled !== undefined 
+            ? (system1_enabled ? 1 : 0) 
+            : (currentConfigs && currentConfigs.length > 0 ? currentConfigs[0].system1_enabled : 0);
+        
+        const finalSystem2Enabled = system2_enabled !== undefined 
+            ? (system2_enabled ? 1 : 0) 
+            : (currentConfigs && currentConfigs.length > 0 ? currentConfigs[0].system2_enabled : 0);
+
+        const upsertSQL = `
+            INSERT INTO payment_config (id, system1_enabled, system1_config, system2_enabled, system2_config, updated_at)
+            VALUES (1, $1, $2, $3, $4, NOW())
+            ON CONFLICT (id) DO UPDATE SET
+                system1_enabled = EXCLUDED.system1_enabled,
+                system1_config = EXCLUDED.system1_config,
+                system2_enabled = EXCLUDED.system2_enabled,
+                system2_config = EXCLUDED.system2_config,
+                updated_at = NOW()
+        `;
+
+        await db.query(upsertSQL, [finalSystem1Enabled, system1ConfigStr, finalSystem2Enabled, system2ConfigStr]);
+
+        const verifyResult = await db.query('SELECT id, system1_enabled, system2_enabled, updated_at FROM payment_config WHERE id = 1');
+        
+        console.log('[PUT/simple] 保存成功:', {
+            system1_enabled: verifyResult[0]?.system1_enabled,
+            system2_enabled: verifyResult[0]?.system2_enabled
+        });
+
+        res.json({
+            code: 200,
+            message: '支付配置更新成功',
+            data: {
+                system1_enabled: !!verifyResult[0]?.system1_enabled,
+                system2_enabled: !!verifyResult[0]?.system2_enabled,
+                updated_at: verifyResult[0]?.updated_at
+            }
+        });
+
+    } catch (error) {
+        console.error('[PUT /payment-config/simple] 错误:', error.message);
+        res.status(500).json({ code: 500, message: '服务器错误: ' + error.message });
+    }
+});
+
+/**
  * PUT /
  * 更新支付配置
  * 需要支付密码验证令牌

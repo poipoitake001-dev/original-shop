@@ -24,24 +24,24 @@ const PaymentSettingsPage = () => {
 
   const loadSettings = async () => {
     setLoading(true)
-    console.log('=== 加载支付设置 ===')
+    console.log('=== 加载支付设置 (从 payment_config 表) ===')
 
-    const res = await adminRequest('/settings')
+    // 从 payment_config 表读取（需要管理员权限）
+    const res = await adminRequest('/admin/payment-config')
     console.log('加载的数据:', res)
 
     if (res.code === 200) {
       const data = res.data || {}
 
-      // 确保布尔值正确转换
       const loadedSettings = {
-        gateway_enabled: Boolean(data.gateway_enabled),
-        gateway_url: data.gateway_url || '',
-        gateway_merchant_id: data.gateway_merchant_id || '',
-        gateway_merchant_key: data.gateway_merchant_key || '',
-        gateway_notify_url: data.gateway_notify_url || `${window.location.origin}/api/payment/notify`,
-        manual_qr_enabled: Boolean(data.manual_qr_enabled),
-        manual_qr_image: data.manual_qr_image || '',
-        manual_qr_description: data.manual_qr_description || '请扫描二维码完成支付，支付后请联系客服确认订单'
+        gateway_enabled: Boolean(data.system1_enabled),
+        gateway_url: data.system1_config?.apiUrl || '',
+        gateway_merchant_id: data.system1_config?.pid || '',
+        gateway_merchant_key: data.system1_config?.key || '',
+        gateway_notify_url: data.system1_config?.notifyUrl || `${window.location.origin}/api/payment/notify`,
+        manual_qr_enabled: Boolean(data.system2_enabled),
+        manual_qr_image: data.system2_config?.qrCodeImageUrl || '',
+        manual_qr_description: data.system2_config?.instructionText || '请扫描二维码完成支付，支付后请联系客服确认订单'
       }
 
       console.log('处理后的设置:', loadedSettings)
@@ -55,20 +55,31 @@ const PaymentSettingsPage = () => {
   const handleSave = async () => {
     setSaving(true)
 
-    // 打印发送的数据用于调试
-    console.log('=== 保存支付设置 ===')
+    console.log('=== 保存支付设置 (写入 payment_config 表) ===')
     console.log('发送的数据:', settings)
-    console.log('数据类型检查:', {
-      gateway_enabled: typeof settings.gateway_enabled,
-      manual_qr_enabled: typeof settings.manual_qr_enabled,
-      gateway_url: typeof settings.gateway_url,
-      manual_qr_image: settings.manual_qr_image ? '已设置' : '未设置'
-    })
 
     try {
-      const res = await adminRequest('/settings', {
+      // 转换为 payment_config 表的格式
+      const payload = {
+        system1_enabled: settings.gateway_enabled ? 1 : 0,
+        system1_config: {
+          apiUrl: settings.gateway_url,
+          pid: settings.gateway_merchant_id,
+          key: settings.gateway_merchant_key,
+          notifyUrl: settings.gateway_notify_url
+        },
+        system2_enabled: settings.manual_qr_enabled ? 1 : 0,
+        system2_config: {
+          qrCodeImageUrl: settings.manual_qr_image,
+          instructionText: settings.manual_qr_description
+        }
+      }
+
+      console.log('转换后的 payload:', payload)
+
+      const res = await adminRequest('/admin/payment-config/simple', {
         method: 'PUT',
-        body: JSON.stringify(settings)
+        body: JSON.stringify(payload)
       })
 
       console.log('服务器响应:', res)
@@ -78,7 +89,6 @@ const PaymentSettingsPage = () => {
       if (res.code === 200) {
         alert('保存成功')
       } else {
-        // 显示详细的错误信息
         const errorMsg = res.message || '保存失败'
         console.error('保存失败:', errorMsg, res)
         alert(`保存失败: ${errorMsg}`)

@@ -11,6 +11,13 @@ const ProductCard = ({ product, onClick, isLoggedIn = true, defaultImage }) => {
   const stock = product.stock ?? 999
   const isOutOfStock = stock <= 0
 
+  // 解析商品图片（支持 JSON 数组和单个 URL）
+  let productImages = []
+  if (product.image_url) {
+    try { productImages = JSON.parse(product.image_url) } catch { productImages = [product.image_url] }
+  }
+  const mainImage = productImages[0] || fallbackImg
+
   const sellerName = product.seller_nickname || product.seller_name || ''
   const sellerAvatar = product.seller_avatar_url || product.seller_avatar || ''
   const sellerVerified = product.seller_verified === 1 || product.seller_verified === true
@@ -36,12 +43,18 @@ const ProductCard = ({ product, onClick, isLoggedIn = true, defaultImage }) => {
       {/* ──── Image ──── */}
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-800/50">
         <img
-          src={product.image_url || fallbackImg}
+          src={mainImage}
           alt={product.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => { e.target.src = fallbackImg }}
           loading="lazy"
         />
+        {/* 多图标记 */}
+        {productImages.length > 1 && (
+          <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded-full">
+            {productImages.length}张图
+          </div>
+        )}
 
         {/* Sold out overlay */}
         {isOutOfStock && (

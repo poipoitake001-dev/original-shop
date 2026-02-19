@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Package, Plus, Edit, Trash2, RefreshCw, Key, Upload, X, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Package, Plus, Edit, Trash2, RefreshCw, Key, Upload, X, ChevronDown, ChevronUp, Eye, EyeOff, ImagePlus } from 'lucide-react'
 import { adminRequest } from '../utils/api'
 
 // ==================== 商品管理 ====================
@@ -10,7 +10,8 @@ const ProductsPage = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [expandedProduct, setExpandedProduct] = useState(null)
-  const [form, setForm] = useState({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto' })
+  const [form, setForm] = useState({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto', images: [] })
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     loadProducts()
@@ -33,14 +34,18 @@ const ProductsPage = () => {
     e.preventDefault()
     if (!form.title || !form.price) { alert('请填写商品名称和价格'); return }
     
+    // 将 images 数组序列化为 JSON 存入 image_url
+    const payload = { ...form, image_url: form.images.length > 0 ? JSON.stringify(form.images) : '' }
+    delete payload.images
+
     const url = editingProduct ? `/admin/products/${editingProduct.id}` : '/admin/products'
     const method = editingProduct ? 'PUT' : 'POST'
-    const res = await adminRequest(url, { method, body: JSON.stringify(form) })
+    const res = await adminRequest(url, { method, body: JSON.stringify(payload) })
     
     if (res.code === 200) {
       setShowForm(false)
       setEditingProduct(null)
-      setForm({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto' })
+      setForm({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto', images: [] })
       loadProducts()
     } else {
       alert(res.message || '操作失败')
@@ -49,15 +54,44 @@ const ProductsPage = () => {
 
   const handleEdit = (product) => {
     setEditingProduct(product)
+    // 解析已有的图片
+    let images = []
+    if (product.image_url) {
+      try { images = JSON.parse(product.image_url) } catch { images = product.image_url ? [product.image_url] : [] }
+    }
     setForm({
       title: product.title || '',
       description: product.description || '',
       price: product.price || '',
       category_id: product.category_id || '',
       icon: product.icon || '📦',
-      delivery_type: product.delivery_type || 'auto'
+      delivery_type: product.delivery_type || 'auto',
+      images
     })
     setShowForm(true)
+  }
+
+  // 图片上传处理
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    files.forEach(file => {
+      if (!file.type.startsWith('image/')) return
+      if (file.size > 2 * 1024 * 1024) { alert(`${file.name} 超过 2MB 限制`); return }
+
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setForm(prev => ({ ...prev, images: [...prev.images, ev.target.result] }))
+      }
+      reader.readAsDataURL(file)
+    })
+    // 清空 input 以便重复选择同一文件
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeImage = (index) => {
+    setForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }))
   }
 
   const handleDelete = async (id) => {
@@ -74,7 +108,7 @@ const ProductsPage = () => {
           <button onClick={loadProducts} className="flex items-center gap-2 px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600">
             <RefreshCw size={16} /> 刷新
           </button>
-          <button onClick={() => { setShowForm(true); setEditingProduct(null); setForm({ title: '', description: '', price: '', category_id: '', icon: '📦' }) }}
+          <button onClick={() => { setShowForm(true); setEditingProduct(null); setForm({ title: '', description: '', price: '', category_id: '', icon: '📦', delivery_type: 'auto', images: [] }) }}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700">
             <Plus size={16} /> 添加商品
           </button>
@@ -127,6 +161,28 @@ const ProductsPage = () => {
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg h-20" placeholder="商品描述" />
               </div>
+              {/* 图片上传 */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">商品图片</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {form.images.map((img, idx) => (
+                    <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-600 group">
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => removeImage(idx)}
+                        className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-lg p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => fileInputRef.current?.click()}
+                    className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-600 flex flex-col items-center justify-center text-slate-400 hover:border-indigo-500 hover:text-indigo-400 transition-colors">
+                    <ImagePlus size={20} />
+                    <span className="text-xs mt-1">上传</span>
+                  </button>
+                </div>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+                <p className="text-xs text-slate-500">支持多张图片，每张不超过 2MB</p>
+              </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2 bg-slate-700 rounded-lg hover:bg-slate-600">取消</button>
                 <button type="submit" className="flex-1 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700">保存</button>
@@ -146,7 +202,13 @@ const ProductsPage = () => {
           <div key={product.id} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <span className="text-2xl">{product.icon || '📦'}</span>
+                {(() => {
+                  let imgs = []
+                  try { imgs = JSON.parse(product.image_url) } catch {}
+                  return imgs.length > 0
+                    ? <img src={imgs[0]} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                    : <span className="text-2xl w-12 h-12 flex items-center justify-center">{product.icon || '📦'}</span>
+                })()}
                 <div>
                   <h3 className="font-medium">{product.title}</h3>
                   <div className="flex items-center gap-4 text-sm text-slate-400 mt-1">
