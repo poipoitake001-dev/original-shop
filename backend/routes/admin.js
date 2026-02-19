@@ -384,9 +384,6 @@ router.get('/settings', verifyToken, verifyAdmin, async (req, res) => {
 
 router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
-        console.log('=== 收到设置更新请求 ===');
-        console.log('请求体字段:', Object.keys(req.body));
-        
         const fields = [
             'site_name', 'site_name_en', 'page_title', 'site_description', 'footer_text', 'footer_description',
             'site_logo_url', 'favicon_url', 'theme_color', 'bg_color', 'default_product_image',
@@ -416,32 +413,51 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
             }
         });
 
-        console.log('匹配到的字段数:', updateFields.length);
-        console.log('更新字段:', updateFields);
-
         if (updateFields.length === 0) {
-            console.log('❌ 没有匹配到任何字段');
             return res.status(400).json({ code: 400, message: '没有要更新的字段' });
         }
 
         // 确保设置记录存在
         const existing = await db.query('SELECT id FROM site_settings WHERE id = 1');
         if (existing.length === 0) {
-            console.log('创建默认设置记录...');
             await db.query('INSERT INTO site_settings (id, site_name) VALUES (1, ?)', ['星际卡密商城']);
         }
 
         params.push(1);
         const sql = `UPDATE site_settings SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`;
-        console.log('执行 SQL:', sql.substring(0, 200));
         
-        await db.query(sql, params);
-        console.log('✓ 设置更新成功');
+        try {
+            await db.query(sql, params);
+        } catch (sqlError) {
+            // 如果是"列不存在"错误（PostgreSQL 42703），自动补列后重试
+            if (sqlError.code === '42703') {
+                console.log('[settings] 检测到缺失列，自动补列中...');
+                const colDefs = {
+                    contact_qq: 'VARCHAR(50)', social_weibo: 'VARCHAR(255)', social_douyin: 'VARCHAR(255)',
+                    social_xiaohongshu: 'VARCHAR(255)', social_bilibili: 'VARCHAR(255)',
+                    feature_1_title: 'VARCHAR(100)', feature_1_desc: 'VARCHAR(200)', feature_1_icon: 'TEXT',
+                    feature_2_title: 'VARCHAR(100)', feature_2_desc: 'VARCHAR(200)', feature_2_icon: 'TEXT',
+                    feature_3_title: 'VARCHAR(100)', feature_3_desc: 'VARCHAR(200)', feature_3_icon: 'TEXT',
+                    gateway_enabled: 'SMALLINT DEFAULT 0', gateway_url: 'VARCHAR(255)',
+                    gateway_merchant_id: 'VARCHAR(100)', gateway_merchant_key: 'VARCHAR(255)',
+                    gateway_notify_url: 'VARCHAR(255)', manual_qr_enabled: 'SMALLINT DEFAULT 0',
+                    manual_qr_image: 'TEXT', manual_qr_description: 'VARCHAR(500)',
+                    withdrawal_fee_percent: 'DECIMAL(5,2) DEFAULT 5.00', withdrawal_min_fee: 'DECIMAL(10,2) DEFAULT 2.00',
+                };
+                for (const [col, type] of Object.entries(colDefs)) {
+                    try { await db.pool.query(`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS ${col} ${type}`); } catch(e) {}
+                }
+                console.log('[settings] 补列完成，重试更新...');
+                await db.query(sql, params);
+            } else {
+                throw sqlError;
+            }
+        }
+        
         res.json({ code: 200, message: '设置已更新' });
     } catch (error) {
-        console.error('❌ Update settings error:', error.message);
-        console.error('Stack:', error.stack);
-        res.status(500).json({ code: 500, message: `更新失败: ${error.message}` });
+        console.error('Update settings error:', error.message);
+        res.status(500).json({ code: 500, message: '更新失败' });
     }
 });
 

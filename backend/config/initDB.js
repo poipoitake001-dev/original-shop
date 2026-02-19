@@ -156,10 +156,15 @@ async function initDatabase() {
                 contact_wechat VARCHAR(100) DEFAULT NULL,
                 contact_email VARCHAR(100) DEFAULT NULL,
                 contact_phone VARCHAR(50) DEFAULT NULL,
+                contact_qq VARCHAR(50) DEFAULT NULL,
                 support_hours VARCHAR(100) DEFAULT '7 x 24 小时',
                 footer_text VARCHAR(500) DEFAULT NULL,
                 footer_description VARCHAR(500) DEFAULT NULL,
                 social_links JSONB DEFAULT NULL,
+                social_weibo VARCHAR(255) DEFAULT NULL,
+                social_douyin VARCHAR(255) DEFAULT NULL,
+                social_xiaohongshu VARCHAR(255) DEFAULT NULL,
+                social_bilibili VARCHAR(255) DEFAULT NULL,
                 feature_1_title VARCHAR(100) DEFAULT NULL,
                 feature_1_desc VARCHAR(200) DEFAULT NULL,
                 feature_1_icon TEXT DEFAULT NULL,
@@ -187,6 +192,11 @@ async function initDatabase() {
 
         // 自动补充支付相关字段（兼容已存在的旧表）
         const paymentColumns = [
+            { name: 'contact_qq', type: 'VARCHAR(50) DEFAULT NULL' },
+            { name: 'social_weibo', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'social_douyin', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'social_xiaohongshu', type: 'VARCHAR(255) DEFAULT NULL' },
+            { name: 'social_bilibili', type: 'VARCHAR(255) DEFAULT NULL' },
             { name: 'gateway_enabled', type: 'SMALLINT DEFAULT 0' },
             { name: 'gateway_url', type: 'VARCHAR(255) DEFAULT NULL' },
             { name: 'gateway_merchant_id', type: 'VARCHAR(100) DEFAULT NULL' },
