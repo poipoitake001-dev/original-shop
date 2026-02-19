@@ -10,7 +10,7 @@ const PaymentSettingsPage = () => {
     gateway_merchant_id: '',
     gateway_merchant_key: '',
     gateway_notify_url: '',
-    
+
     // 手动二维码支付
     manual_qr_enabled: false,
     manual_qr_image: '',
@@ -25,13 +25,13 @@ const PaymentSettingsPage = () => {
   const loadSettings = async () => {
     setLoading(true)
     console.log('=== 加载支付设置 ===')
-    
-    const res = await adminRequest('/admin/settings')
+
+    const res = await adminRequest('/settings')
     console.log('加载的数据:', res)
-    
+
     if (res.code === 200) {
       const data = res.data || {}
-      
+
       // 确保布尔值正确转换
       const loadedSettings = {
         gateway_enabled: Boolean(data.gateway_enabled),
@@ -43,7 +43,7 @@ const PaymentSettingsPage = () => {
         manual_qr_image: data.manual_qr_image || '',
         manual_qr_description: data.manual_qr_description || '请扫描二维码完成支付，支付后请联系客服确认订单'
       }
-      
+
       console.log('处理后的设置:', loadedSettings)
       setSettings(loadedSettings)
     } else {
@@ -54,7 +54,7 @@ const PaymentSettingsPage = () => {
 
   const handleSave = async () => {
     setSaving(true)
-    
+
     // 打印发送的数据用于调试
     console.log('=== 保存支付设置 ===')
     console.log('发送的数据:', settings)
@@ -64,17 +64,17 @@ const PaymentSettingsPage = () => {
       gateway_url: typeof settings.gateway_url,
       manual_qr_image: settings.manual_qr_image ? '已设置' : '未设置'
     })
-    
+
     try {
-      const res = await adminRequest('/admin/settings', { 
-        method: 'PUT', 
-        body: JSON.stringify(settings) 
+      const res = await adminRequest('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings)
       })
-      
+
       console.log('服务器响应:', res)
-      
+
       setSaving(false)
-      
+
       if (res.code === 200) {
         alert('保存成功')
       } else {
@@ -107,7 +107,7 @@ const PaymentSettingsPage = () => {
     }
 
     setUploading(true)
-    
+
     // 转换为 Base64
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -135,14 +135,14 @@ const PaymentSettingsPage = () => {
           <p className="text-sm text-slate-400 mt-1">配置网站的支付方式和参数</p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={loadSettings} 
+          <button
+            onClick={loadSettings}
             className="flex items-center gap-2 px-4 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition"
           >
             <RefreshCw size={16} /> 刷新
           </button>
-          <button 
-            onClick={handleSave} 
+          <button
+            onClick={handleSave}
             disabled={saving || uploading}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
@@ -164,8 +164,8 @@ const PaymentSettingsPage = () => {
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={settings.gateway_enabled}
               onChange={(e) => setSettings({ ...settings, gateway_enabled: e.target.checked })}
               className="sr-only peer"
@@ -177,48 +177,48 @@ const PaymentSettingsPage = () => {
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm text-slate-400 mb-2">API 网关地址</label>
-            <input 
-              type="text" 
-              value={settings.gateway_url} 
+            <input
+              type="text"
+              value={settings.gateway_url}
               onChange={(e) => setSettings({ ...settings, gateway_url: e.target.value })}
               disabled={!settings.gateway_enabled}
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none transition" 
-              placeholder="https://api.payment-gateway.com" 
+              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none transition"
+              placeholder="https://api.payment-gateway.com"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-slate-400 mb-2">商户 ID</label>
-              <input 
-                type="text" 
-                value={settings.gateway_merchant_id} 
+              <input
+                type="text"
+                value={settings.gateway_merchant_id}
                 onChange={(e) => setSettings({ ...settings, gateway_merchant_id: e.target.value })}
                 disabled={!settings.gateway_enabled}
-                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none transition" 
-                placeholder="merchant_123456" 
+                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none transition"
+                placeholder="merchant_123456"
               />
             </div>
             <div>
               <label className="block text-sm text-slate-400 mb-2">商户密钥</label>
-              <input 
-                type="password" 
-                value={settings.gateway_merchant_key} 
+              <input
+                type="password"
+                value={settings.gateway_merchant_key}
                 onChange={(e) => setSettings({ ...settings, gateway_merchant_key: e.target.value })}
                 disabled={!settings.gateway_enabled}
-                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none transition" 
-                placeholder="••••••••••••••••" 
+                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed focus:border-indigo-500 focus:outline-none transition"
+                placeholder="••••••••••••••••"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-sm text-slate-400 mb-2">异步通知地址（只读）</label>
-            <input 
-              type="text" 
-              value={settings.gateway_notify_url} 
+            <input
+              type="text"
+              value={settings.gateway_notify_url}
               readOnly
-              className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg cursor-not-allowed text-slate-400" 
+              className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg cursor-not-allowed text-slate-400"
             />
             <p className="text-xs text-slate-500 mt-1">此地址用于接收支付网关的异步通知，请在支付网关后台配置</p>
           </div>
@@ -238,8 +238,8 @@ const PaymentSettingsPage = () => {
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={settings.manual_qr_enabled}
               onChange={(e) => setSettings({ ...settings, manual_qr_enabled: e.target.checked })}
               className="sr-only peer"
@@ -256,9 +256,9 @@ const PaymentSettingsPage = () => {
               <div className="flex-shrink-0">
                 {settings.manual_qr_image ? (
                   <div className="relative group">
-                    <img 
-                      src={settings.manual_qr_image} 
-                      alt="收款二维码" 
+                    <img
+                      src={settings.manual_qr_image}
+                      alt="收款二维码"
                       className="w-32 h-32 object-cover rounded-lg border-2 border-slate-600"
                       onError={(e) => {
                         e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="128" height="128"%3E%3Crect fill="%23334155" width="128" height="128"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-size="14"%3E加载失败%3C/text%3E%3C/svg%3E'
@@ -285,8 +285,8 @@ const PaymentSettingsPage = () => {
                 <label className={`flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg cursor-pointer hover:bg-slate-600 transition ${!settings.manual_qr_enabled || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   <Upload size={16} />
                   <span>{uploading ? '上传中...' : '点击上传图片'}</span>
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     accept="image/*"
                     onChange={(e) => handleImageUpload(e, 'manual_qr_image')}
                     disabled={!settings.manual_qr_enabled || uploading}
@@ -300,11 +300,11 @@ const PaymentSettingsPage = () => {
 
           <div>
             <label className="block text-sm text-slate-400 mb-2">支付说明</label>
-            <textarea 
-              value={settings.manual_qr_description} 
+            <textarea
+              value={settings.manual_qr_description}
               onChange={(e) => setSettings({ ...settings, manual_qr_description: e.target.value })}
               disabled={!settings.manual_qr_enabled}
-              className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg h-24 disabled:opacity-50 disabled:cursor-not-allowed focus:border-green-500 focus:outline-none transition resize-none" 
+              className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg h-24 disabled:opacity-50 disabled:cursor-not-allowed focus:border-green-500 focus:outline-none transition resize-none"
               placeholder="请输入支付说明文字，例如：请扫描二维码完成支付，支付后请联系客服确认订单"
             />
             <p className="text-xs text-slate-500 mt-1">此文字将显示在支付页面，引导用户完成支付</p>

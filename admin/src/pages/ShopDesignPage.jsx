@@ -13,10 +13,10 @@ const ShopDesignPage = () => {
   const loadSettings = async () => {
     setLoading(true)
     console.log('=== 加载店铺装修设置 ===')
-    
-    const res = await adminRequest('/admin/settings')
+
+    const res = await adminRequest('/settings')
     console.log('加载的数据:', res)
-    
+
     if (res.code === 200) {
       setSettings(res.data || {})
     } else {
@@ -27,21 +27,21 @@ const ShopDesignPage = () => {
 
   const handleSave = async () => {
     setSaving(true)
-    
+
     console.log('=== 保存店铺装修设置 ===')
     console.log('发送的数据:', settings)
     console.log('数据字段数量:', Object.keys(settings).length)
-    
+
     try {
-      const res = await adminRequest('/admin/settings', { 
-        method: 'PUT', 
-        body: JSON.stringify(settings) 
+      const res = await adminRequest('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings)
       })
-      
+
       console.log('服务器响应:', res)
-      
+
       setSaving(false)
-      
+
       if (res.code === 200) {
         alert('保存成功')
       } else {
@@ -89,9 +89,9 @@ const ShopDesignPage = () => {
       <div className="flex items-start gap-4">
         {preview && settings[field] && (
           <div className="flex-shrink-0 relative group">
-            <img 
-              src={settings[field]} 
-              alt={label} 
+            <img
+              src={settings[field]}
+              alt={label}
               className={`${previewSize} object-contain rounded-lg border-2 border-slate-600 bg-slate-700 p-2`}
               onError={(e) => e.target.style.display = 'none'}
             />
@@ -109,8 +109,8 @@ const ShopDesignPage = () => {
           <label className={`flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg cursor-pointer hover:bg-slate-600 transition ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Upload size={16} />
             <span>{uploading ? '上传中...' : '点击上传图片'}</span>
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
               onChange={(e) => handleImageUpload(e, field)}
               disabled={uploading}
@@ -193,7 +193,7 @@ const ShopDesignPage = () => {
         <div className="space-y-4">
           <ImageUploadField label="网站 Logo" field="site_logo_url" />
           <ImageUploadField label="Favicon 图标" field="favicon_url" previewSize="w-8 h-8" />
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-slate-400 mb-2">主题颜色</label>
@@ -214,7 +214,7 @@ const ShopDesignPage = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="p-4 rounded-lg border border-slate-600" style={{ backgroundColor: settings.bg_color || '#0f172a' }}>
             <p className="text-sm text-slate-400 mb-2">预览效果</p>
             <button className="px-4 py-2 rounded-lg text-white" style={{ backgroundColor: settings.theme_color || '#6366f1' }}>
@@ -235,7 +235,7 @@ const ShopDesignPage = () => {
             <p className="text-sm text-slate-400">展示网站的核心特色和优势，最多配置 3 个</p>
           </div>
         </div>
-        
+
         {[1, 2, 3].map(num => (
           <div key={num} className="p-4 bg-slate-700/50 rounded-lg space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
@@ -245,28 +245,28 @@ const ShopDesignPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-slate-400 mb-2">标题</label>
-                <input 
-                  type="text" 
-                  value={settings[`feature_${num}_title`] || ''} 
+                <input
+                  type="text"
+                  value={settings[`feature_${num}_title`] || ''}
                   onChange={(e) => setSettings({ ...settings, [`feature_${num}_title`]: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:border-indigo-500 focus:outline-none transition text-sm" 
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:border-indigo-500 focus:outline-none transition text-sm"
                   placeholder={`例如：${num === 1 ? '极速发货' : num === 2 ? '7x24 客服' : '正品保障'}`}
                 />
               </div>
               <div>
                 <label className="block text-sm text-slate-400 mb-2">描述</label>
-                <input 
-                  type="text" 
-                  value={settings[`feature_${num}_desc`] || ''} 
+                <input
+                  type="text"
+                  value={settings[`feature_${num}_desc`] || ''}
                   onChange={(e) => setSettings({ ...settings, [`feature_${num}_desc`]: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:border-indigo-500 focus:outline-none transition text-sm" 
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:border-indigo-500 focus:outline-none transition text-sm"
                   placeholder="简短描述"
                 />
               </div>
             </div>
-            <ImageUploadField 
-              label="徽章图标" 
-              field={`feature_${num}_icon`} 
+            <ImageUploadField
+              label="徽章图标"
+              field={`feature_${num}_icon`}
               previewSize="w-12 h-12"
             />
           </div>
