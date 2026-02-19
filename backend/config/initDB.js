@@ -222,9 +222,10 @@ async function initDatabase() {
         ];
         for (const col of paymentColumns) {
             try {
-                await db.query(`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+                // 直接使用 pool.query 绕过 convertSQL，避免 DDL 语句被错误转换
+                await db.pool.query(`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
             } catch (e) {
-                // 列已存在则忽略
+                console.log(`  补充字段 ${col.name} 跳过:`, e.message);
             }
         }
         console.log('✓ site_settings 支付字段已就绪');
