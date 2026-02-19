@@ -47,6 +47,7 @@ app.set('trust proxy', 1);
 
 // 允许的来源列表（从环境变量读取，逗号分隔）
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+console.log('[CORS] 允许的来源:', ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : '(未配置，允许所有)');
 
 function isOriginAllowed(origin) {
     // 无 origin（如服务器间调用、支付回调）放行
@@ -55,6 +56,7 @@ function isOriginAllowed(origin) {
     if (ALLOWED_ORIGINS.length === 0) return true;
     return ALLOWED_ORIGINS.some(allowed => {
         if (allowed === '*') return true;
+        // 精确匹配或子域名匹配
         return origin === allowed || origin.endsWith('.' + allowed.replace(/^https?:\/\//, ''));
     });
 }
@@ -62,11 +64,14 @@ function isOriginAllowed(origin) {
 // 处理所有 OPTIONS 预检请求（最高优先级）
 app.options('*', (req, res) => {
     const origin = req.headers.origin;
-    if (isOriginAllowed(origin)) {
+    const allowed = isOriginAllowed(origin);
+    console.log(`[CORS] OPTIONS 预检: origin=${origin}, allowed=${allowed}`);
+    if (allowed) {
         res.header('Access-Control-Allow-Origin', origin || '*');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Payment-Token');
+    res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400');
     res.sendStatus(204);
 });
@@ -79,6 +84,7 @@ app.use((req, res, next) => {
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Payment-Token');
+    res.header('Access-Control-Allow-Credentials', 'true');
     next();
 });
 
