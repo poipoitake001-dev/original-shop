@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Star, ShieldCheck, Trophy, Package, MessageCircle,
-  ChevronRight, Loader2, AlertCircle, Tag, Layers, Share2,
+  ChevronRight, ChevronLeft, Loader2, AlertCircle, Tag, Layers, Share2,
   CreditCard, Heart, Eye, Zap, Clock, MessageSquare, Bookmark
 } from 'lucide-react'
 import { STOCK_LIMIT } from '../utils/storage'
@@ -26,6 +26,7 @@ const ProductDetail = () => {
   const [toast, setToast] = useState(null)
   const [wanted, setWanted] = useState(false)
   const [wantCount, setWantCount] = useState(0)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type })
@@ -57,7 +58,7 @@ const ProductDetail = () => {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => r.json()).then(res => {
         if (res.code === 200) setWanted(res.data?.wanted || false)
-      }).catch(() => {})
+      }).catch(() => { })
     }
   }, [id])
 
@@ -102,7 +103,7 @@ const ProductDetail = () => {
         setWanted(res.data.wanted)
         setWantCount(res.data.wantCount)
       }
-    } catch {}
+    } catch { }
   }
 
   if (loading) {
@@ -134,7 +135,15 @@ const ProductDetail = () => {
   const priceDec = (rawPrice % 1).toFixed(2).slice(1)
   const stock = product.stock ?? STOCK_LIMIT
   const isOutOfStock = stock <= 0
-  const fallbackImg = product.image_url || productDefault
+
+  // 解析商品图片（支持 JSON 数组和单个 URL）
+  let productImages = []
+  if (product.image_url) {
+    try { productImages = JSON.parse(product.image_url) } catch { productImages = [product.image_url] }
+  }
+  if (!Array.isArray(productImages)) productImages = productImages ? [productImages] : []
+  const fallbackImg = productImages[0] || productDefault
+  const hasMultipleImages = productImages.length > 1
   const sellerName = product.seller_nickname || product.seller_name || ''
   const sellerAvatar = product.seller_avatar_url || product.seller_avatar || ''
   const sellerRating = parseFloat(product.seller_rating || 5.0)
@@ -210,25 +219,93 @@ const ProductDetail = () => {
           {/* ════════════════════════════════════════════ */}
           <div className="lg:w-[55%] flex-shrink-0">
             <div className="relative rounded-xl overflow-hidden bg-slate-900 border border-white/[0.06]">
-              <img
-                src={fallbackImg}
-                alt={product.title}
-                className="w-full aspect-[4/3] object-cover"
-                onError={(e) => { e.target.src = productDefault }}
-              />
+              {/* 图片轮播 */}
+              <div className="relative">
+                <img
+                  src={productImages[currentImageIndex] || fallbackImg}
+                  alt={`${product.title} - ${currentImageIndex + 1}`}
+                  className="w-full aspect-[4/3] object-cover transition-opacity duration-300"
+                  onError={(e) => { e.target.src = productDefault }}
+                />
+
+                {/* 左右箭头 */}
+                {hasMultipleImages && (
+                  <>
+                    <button
+                      onClick={() => setCurrentImageIndex(i => i === 0 ? productImages.length - 1 : i - 1)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:bg-black/60 hover:text-white transition-all"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button
+                      onClick={() => setCurrentImageIndex(i => i === productImages.length - 1 ? 0 : i + 1)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 hover:bg-black/60 hover:text-white transition-all"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+
+                {/* 图片计数 */}
+                {hasMultipleImages && (
+                  <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/50 backdrop-blur-sm rounded-full text-xs text-white/80 font-medium">
+                    {currentImageIndex + 1} / {productImages.length}
+                  </div>
+                )}
+              </div>
+
+              {/* 底部圆点指示器 */}
+              {hasMultipleImages && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                  {productImages.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentImageIndex(idx)}
+                      className={`rounded-full transition-all ${idx === currentImageIndex
+                          ? 'w-5 h-2 bg-white'
+                          : 'w-2 h-2 bg-white/40 hover:bg-white/60'
+                        }`}
+                    />
+                  ))}
+                </div>
+              )}
+
               {/* Overlays */}
-              {wantCount > 0 && (
+              {wantCount > 0 && !hasMultipleImages && (
                 <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-xs text-white/80">
                   <Heart size={12} className="text-rose-400 fill-rose-400" />
                   {wantCount}人想要
                 </div>
               )}
-              {viewCount > 0 && (
+              {viewCount > 0 && !hasMultipleImages && (
                 <div className="absolute bottom-3 left-3 flex items-center gap-1 px-2 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-[11px] text-white/60">
                   <Eye size={11} /> {viewCount}
                 </div>
               )}
             </div>
+
+            {/* 缩略图列表 */}
+            {hasMultipleImages && (
+              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                {productImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentImageIndex(idx)}
+                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentImageIndex
+                        ? 'border-violet-500 ring-1 ring-violet-500/30'
+                        : 'border-white/[0.06] hover:border-white/[0.15]'
+                      }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`缩略图 ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.src = productDefault }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ════════════════════════════════════════════ */}
@@ -324,9 +401,8 @@ const ProductDetail = () => {
                 <button
                   onClick={handleBuy}
                   disabled={isOutOfStock}
-                  className={`flex-1 py-3.5 flex items-center justify-center gap-2 font-bold text-sm active:opacity-80 transition-opacity ${
-                    isOutOfStock ? 'cursor-not-allowed' : ''
-                  }`}
+                  className={`flex-1 py-3.5 flex items-center justify-center gap-2 font-bold text-sm active:opacity-80 transition-opacity ${isOutOfStock ? 'cursor-not-allowed' : ''
+                    }`}
                   style={{
                     backgroundColor: isOutOfStock ? '#374151' : '#ff5000',
                     color: isOutOfStock ? '#6b7280' : '#ffffff'
@@ -340,11 +416,10 @@ const ProductDetail = () => {
               {/* Want / Collect button */}
               <button
                 onClick={handleToggleWant}
-                className={`w-full py-2.5 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition-all border ${
-                  wanted
+                className={`w-full py-2.5 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition-all border ${wanted
                     ? 'bg-rose-500/10 border-rose-500/25 text-rose-400'
                     : 'bg-transparent border-white/[0.1] text-slate-400 hover:bg-white/[0.04] hover:text-white'
-                }`}
+                  }`}
               >
                 <Bookmark size={15} className={wanted ? 'fill-rose-400' : ''} />
                 {wanted ? '已收藏' : '收藏'}
@@ -481,7 +556,7 @@ const ProductDetail = () => {
         product={product}
         onClose={() => setShowPurchase(false)}
         showToast={showToast}
-        onPaymentSuccess={() => {}}
+        onPaymentSuccess={() => { }}
       />
       <ShareOptionsModal
         isOpen={showShareOptions}

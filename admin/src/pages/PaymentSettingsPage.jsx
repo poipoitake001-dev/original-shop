@@ -60,12 +60,14 @@ const PaymentSettingsPage = () => {
 
     try {
       // 转换为 payment_config 表的格式
+      // 如果 key 含有掩码（****），说明用户未修改，发送空字符串让后端保留原值
+      const apiKey = settings.gateway_merchant_key?.includes('****') ? '' : settings.gateway_merchant_key
       const payload = {
         system1_enabled: settings.gateway_enabled ? 1 : 0,
         system1_config: {
           apiUrl: settings.gateway_url,
           pid: settings.gateway_merchant_id,
-          key: settings.gateway_merchant_key,
+          key: apiKey,
           notifyUrl: settings.gateway_notify_url
         },
         system2_enabled: settings.manual_qr_enabled ? 1 : 0,
