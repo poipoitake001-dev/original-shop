@@ -384,6 +384,9 @@ router.get('/settings', verifyToken, verifyAdmin, async (req, res) => {
 
 router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
     try {
+        console.log('=== 收到设置更新请求 ===');
+        console.log('请求体字段:', Object.keys(req.body));
+        
         const fields = [
             'site_name', 'site_name_en', 'page_title', 'site_description', 'footer_text', 'footer_description',
             'site_logo_url', 'favicon_url', 'theme_color', 'bg_color', 'default_product_image',
@@ -405,6 +408,7 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
                 if (f === 'withdrawal_fee_percent' || f === 'withdrawal_min_fee') {
                     params.push(parseFloat(req.body[f]) || 0);
                 } else if (f === 'gateway_enabled' || f === 'manual_qr_enabled') {
+                    // 确保布尔值正确转换为 0/1
                     params.push(req.body[f] ? 1 : 0);
                 } else {
                     params.push(req.body[f] || null);
@@ -412,22 +416,32 @@ router.put('/settings', verifyToken, verifyAdmin, async (req, res) => {
             }
         });
 
+        console.log('匹配到的字段数:', updateFields.length);
+        console.log('更新字段:', updateFields);
+
         if (updateFields.length === 0) {
+            console.log('❌ 没有匹配到任何字段');
             return res.status(400).json({ code: 400, message: '没有要更新的字段' });
         }
 
         // 确保设置记录存在
         const existing = await db.query('SELECT id FROM site_settings WHERE id = 1');
         if (existing.length === 0) {
+            console.log('创建默认设置记录...');
             await db.query('INSERT INTO site_settings (id, site_name) VALUES (1, ?)', ['星际卡密商城']);
         }
 
         params.push(1);
-        await db.query(`UPDATE site_settings SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`, params);
+        const sql = `UPDATE site_settings SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`;
+        console.log('执行 SQL:', sql.substring(0, 200));
+        
+        await db.query(sql, params);
+        console.log('✓ 设置更新成功');
         res.json({ code: 200, message: '设置已更新' });
     } catch (error) {
-        console.error('Update settings error:', error.message);
-        res.status(500).json({ code: 500, message: '更新失败' });
+        console.error('❌ Update settings error:', error.message);
+        console.error('Stack:', error.stack);
+        res.status(500).json({ code: 500, message: `更新失败: ${error.message}` });
     }
 });
 
